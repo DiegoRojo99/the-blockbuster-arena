@@ -47,6 +47,13 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        cinema: {
+          gold: "hsl(var(--cinema-gold))",
+          purple: "hsl(var(--cinema-purple))",
+          blue: "hsl(var(--cinema-blue))",
+          dark: "hsl(var(--cinema-dark))",
+          card: "hsl(var(--cinema-card))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
