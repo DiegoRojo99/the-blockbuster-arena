@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Trophy, RefreshCw, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
+import { LanguageSelector } from "@/components/LanguageSelector";
 import { MovieSearch, CastReveal, MovieModeSelector } from "@/components/cast-game";
 import { GameMovie, TMDBMovie, MovieMode, GameResult } from "@/types/tmdb";
 import { getGameMovies, getImageUrl } from "@/services/tmdb";
@@ -274,7 +275,11 @@ const CastGamePage = () => {
               </Badge>
             )}
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
+            {/* Language selector - mobile only */}
+            <div className="lg:hidden">
+              <LanguageSelector variant="outline" />
+            </div>
             <MovieModeSelector 
               selectedMode={selectedMode}
               onModeChange={setSelectedMode}
