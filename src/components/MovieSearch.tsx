@@ -14,13 +14,15 @@ interface MovieSearchProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  recentGuesses?: TMDBMovie[];
 }
 
 export const MovieSearch = ({ 
   onMovieSelect, 
   placeholder = "Search for a movie...", 
   disabled = false,
-  className 
+  className,
+  recentGuesses = []
 }: MovieSearchProps) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TMDBMovie[]>([]);
@@ -101,7 +103,7 @@ export const MovieSearch = ({
 
   const handleMovieSelect = (movie: TMDBMovie) => {
     setSelectedMovie(movie);
-    setQuery(movie.title);
+    setQuery("");  // Clear the input after selection
     setShowResults(false);
     onMovieSelect(movie);
   };
@@ -165,6 +167,40 @@ export const MovieSearch = ({
           Submit
         </Button>
       </div>
+
+      {/* Recent Guesses */}
+      {recentGuesses.length > 0 && (
+        <div className="mt-3">
+          <div className="text-sm font-medium text-muted-foreground mb-2">Recent Guesses:</div>
+          <div className="space-y-1">
+            {recentGuesses.map((movie, index) => (
+              <Card key={`${movie.id}-${index}`} className="bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
+                <CardContent className="p-2">
+                  <div className="flex items-center gap-2">
+                    {movie.poster_path && (
+                      <img
+                        src={getImageUrl(movie.poster_path, 'w92') || ''}
+                        alt={movie.title}
+                        className="w-8 h-12 object-cover rounded"
+                      />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-red-800 dark:text-red-200 truncate">
+                        ❌ {movie.title}
+                      </div>
+                      {movie.release_date && (
+                        <div className="text-xs text-red-600 dark:text-red-400">
+                          {movie.release_date.split('-')[0]}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {selectedMovie && (
         <div className="mt-2">

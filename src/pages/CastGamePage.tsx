@@ -22,6 +22,7 @@ const CastGamePage = () => {
   const [revealedCast, setRevealedCast] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [guessedMovie, setGuessedMovie] = useState<TMDBMovie | null>(null);
+  const [wrongGuesses, setWrongGuesses] = useState<TMDBMovie[]>([]);
   
   const { currentLanguage } = useLanguage();
   const maxReveals = 6;
@@ -68,6 +69,7 @@ const CastGamePage = () => {
     setCurrentMovie(randomMovie);
     setRevealedCast(1); // Start with 1 cast member revealed
     setGuessedMovie(null);
+    setWrongGuesses([]); // Clear wrong guesses for new movie
   };
 
   const handleMovieGuess = (movie: TMDBMovie) => {
@@ -88,25 +90,51 @@ const CastGamePage = () => {
       setTimeout(() => {
         if (usedMovies.length + 1 >= totalGames) {
           setGameOver(true);
-        } else {
+        } 
+        else {
           selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
         }
       }, 2000);
-    } else {
-      toast({
-        title: "Incorrect! ❌",
-        description: `That's not the right movie. The correct answer was "${currentMovie.title}".`,
-        variant: "destructive"
-      });
+    } 
+    else {
+      // Add wrong guess to the list
+      setWrongGuesses(prev => [...prev, movie]);
       
-      // Move to next movie after showing the correct answer
+      // Wrong guess - reveal next cast member if available
+      if (revealedCast < maxReveals) {
+        setRevealedCast(prev => prev + 1);
+        toast({
+          title: "Incorrect! ❌",
+          description: `That's not right. Revealing another cast member...`,
+          variant: "destructive"
+        });
+      } 
+      else {
+        // No more cast members to reveal - show answer and move to next movie
+        toast({
+          title: "Game Over for this movie! ❌",
+          description: `All cast revealed! It was "${currentMovie.title}" (${currentMovie.year}).`,
+          variant: "destructive"
+        });
+        
+        setUsedMovies(prev => [...prev, currentMovie.id]);
+        
+        setTimeout(() => {
+          if (usedMovies.length + 1 >= totalGames) {
+            setGameOver(true);
+          } 
+          else {
+            selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+          }
+        }, 3000);
+      }
+      
+      // Clear the guessed movie so they can try again (if cast members remain)
       setTimeout(() => {
-        if (usedMovies.length + 1 >= totalGames) {
-          setGameOver(true);
-        } else {
-          selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+        if (revealedCast < maxReveals) {
+          setGuessedMovie(null);
         }
-      }, 3000);
+      }, 1500);
     }
     
     setAttempts(attempts + 1);
@@ -129,7 +157,8 @@ const CastGamePage = () => {
     
     if (usedMovies.length + 1 >= totalGames) {
       setGameOver(true);
-    } else {
+    } 
+    else {
       selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
     }
     
@@ -143,6 +172,7 @@ const CastGamePage = () => {
     setGameOver(false);
     setRevealedCast(0);
     setGuessedMovie(null);
+    setWrongGuesses([]);
     if (availableMovies.length > 0) {
       selectRandomMovie(availableMovies, []);
     } else {
@@ -226,11 +256,6 @@ const CastGamePage = () => {
                 <CardTitle className="text-xl text-center bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
                   🎭 Guess the Movie by Cast
                 </CardTitle>
-                <div className="text-center">
-                  <Badge variant="secondary">
-                    Year: {currentMovie.year}
-                  </Badge>
-                </div>
               </CardHeader>
               <CardContent>
                 <CastReveal 
@@ -238,7 +263,7 @@ const CastGamePage = () => {
                   revealedCount={revealedCast}
                 />
                 
-                {revealedCast < maxReveals && !guessedMovie && (
+                {revealedCast < maxReveals && (!guessedMovie || (guessedMovie.id !== currentMovie.id && revealedCast < maxReveals)) && (
                   <div className="mt-6 text-center">
                     <Button
                       onClick={revealNextCast}
@@ -261,12 +286,13 @@ const CastGamePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {!guessedMovie ? (
+                {!guessedMovie || (guessedMovie.id !== currentMovie.id && revealedCast < maxReveals) ? (
                   <>
                     <MovieSearch
                       onMovieSelect={handleMovieGuess}
                       placeholder="Search for the movie..."
-                      disabled={!!guessedMovie}
+                      disabled={false}
+                      recentGuesses={wrongGuesses}
                     />
                     
                     <div className="text-center">
@@ -286,34 +312,48 @@ const CastGamePage = () => {
                         <Badge className="bg-green-500 text-white text-lg px-4 py-2">
                           ✅ Correct!
                         </Badge>
+                        
+                        {currentMovie.posterPath && (
+                          <div className="flex justify-center mt-4">
+                            <img
+                              src={getImageUrl(currentMovie.posterPath, 'w342') || ''}
+                              alt={currentMovie.title}
+                              className="w-32 h-48 object-cover rounded-lg shadow-md"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="text-sm text-muted-foreground">
+                          Moving to next movie...
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-2">
                         <Badge variant="destructive" className="text-lg px-4 py-2">
-                          ❌ Incorrect
+                          ❌ Game Over!
                         </Badge>
                         <div className="text-sm text-muted-foreground">
-                          Your guess: <strong>{guessedMovie.title}</strong>
+                          All cast members revealed!
                         </div>
                         <div className="text-sm">
-                          Correct answer: <strong className="text-cinema-gold">{currentMovie.title}</strong>
+                          It was: <strong className="text-cinema-gold">{currentMovie.title}</strong>
+                        </div>
+                        
+                        {currentMovie.posterPath && (
+                          <div className="flex justify-center mt-4">
+                            <img
+                              src={getImageUrl(currentMovie.posterPath, 'w342') || ''}
+                              alt={currentMovie.title}
+                              className="w-32 h-48 object-cover rounded-lg shadow-md"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="text-sm text-muted-foreground">
+                          Moving to next movie...
                         </div>
                       </div>
                     )}
-                    
-                    {currentMovie.posterPath && (
-                      <div className="flex justify-center">
-                        <img
-                          src={getImageUrl(currentMovie.posterPath, 'w342') || ''}
-                          alt={currentMovie.title}
-                          className="w-32 h-48 object-cover rounded-lg shadow-md"
-                        />
-                      </div>
-                    )}
-                    
-                    <div className="text-sm text-muted-foreground">
-                      Moving to next movie...
-                    </div>
                   </div>
                 )}
               </CardContent>
