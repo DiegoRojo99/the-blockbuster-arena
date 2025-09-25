@@ -23,6 +23,7 @@ const CastGamePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [guessedMovie, setGuessedMovie] = useState<TMDBMovie | null>(null);
   const [wrongGuesses, setWrongGuesses] = useState<TMDBMovie[]>([]);
+  const [clearMovieSelection, setClearMovieSelection] = useState(false);
   
   const { currentLanguage } = useLanguage();
   const maxReveals = 6;
@@ -70,6 +71,7 @@ const CastGamePage = () => {
     setRevealedCast(1); // Start with 1 cast member revealed
     setGuessedMovie(null);
     setWrongGuesses([]); // Clear wrong guesses for new movie
+    setClearMovieSelection(false); // Reset clear selection flag for new movie
   };
 
   const handleMovieGuess = (movie: TMDBMovie) => {
@@ -100,6 +102,9 @@ const CastGamePage = () => {
       // Add wrong guess to the list
       setWrongGuesses(prev => [...prev, movie]);
       
+      // Trigger clear selection for wrong guess
+      setClearMovieSelection(true);
+      
       // Wrong guess - reveal next cast member if available
       if (revealedCast < maxReveals) {
         setRevealedCast(prev => prev + 1);
@@ -129,11 +134,12 @@ const CastGamePage = () => {
         }, 3000);
       }
       
-      // Clear the guessed movie so they can try again (if cast members remain)
+      // Clear the guessed movie and reset selection flag so they can try again (if cast members remain)
       setTimeout(() => {
         if (revealedCast < maxReveals) {
           setGuessedMovie(null);
         }
+        setClearMovieSelection(false); // Reset the clear selection flag
       }, 1500);
     }
     
@@ -173,6 +179,7 @@ const CastGamePage = () => {
     setRevealedCast(0);
     setGuessedMovie(null);
     setWrongGuesses([]);
+    setClearMovieSelection(false);
     if (availableMovies.length > 0) {
       selectRandomMovie(availableMovies, []);
     } else {
@@ -293,6 +300,7 @@ const CastGamePage = () => {
                       placeholder="Search for the movie..."
                       disabled={false}
                       recentGuesses={wrongGuesses}
+                      shouldClearSelection={clearMovieSelection}
                     />
                     
                     <div className="text-center">

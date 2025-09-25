@@ -15,6 +15,7 @@ interface MovieSearchProps {
   disabled?: boolean;
   className?: string;
   recentGuesses?: TMDBMovie[];
+  shouldClearSelection?: boolean;
 }
 
 export const MovieSearch = ({ 
@@ -22,7 +23,8 @@ export const MovieSearch = ({
   placeholder = "Search for a movie...", 
   disabled = false,
   className,
-  recentGuesses = []
+  recentGuesses = [],
+  shouldClearSelection = false
 }: MovieSearchProps) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<TMDBMovie[]>([]);
@@ -73,6 +75,14 @@ export const MovieSearch = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Clear selection when shouldClearSelection prop changes to true
+  useEffect(() => {
+    if (shouldClearSelection && selectedMovie) {
+      setSelectedMovie(null);
+      setQuery("");
+    }
+  }, [shouldClearSelection, selectedMovie]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
