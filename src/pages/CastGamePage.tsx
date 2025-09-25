@@ -8,7 +8,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { MovieSearch, CastReveal } from "@/components/cast-game";
 import { GameMovie, TMDBMovie, MovieMode, GameResult } from "@/types/tmdb";
-import { getGameMovies, getImageUrl } from "@/services/tmdb";
+import { getGameMovies, getGameMovieWithCast, getImageUrl } from "@/services/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const CastGamePage = () => {
@@ -20,7 +20,7 @@ const CastGamePage = () => {
   const selectedMode = ['popular', 'top_rated', 'now_playing', 'upcoming'].includes(modeParam) ? modeParam : 'popular';
   
   const [currentMovie, setCurrentMovie] = useState<GameMovie | null>(null);
-  const [availableMovies, setAvailableMovies] = useState<GameMovie[]>([]);
+  const [availableMovies, setAvailableMovies] = useState<TMDBMovie[]>([]);
   const [score, setScore] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [gameOver, setGameOver] = useState(false);
@@ -63,7 +63,7 @@ const CastGamePage = () => {
         return;
       }
       setAvailableMovies(movies);
-      selectRandomMovie(movies, []);
+      await selectRandomMovie(movies, []);
     } catch (error) {
       console.error("Failed to load movies:", error);
       toast({
@@ -77,7 +77,7 @@ const CastGamePage = () => {
     }
   };
 
-  const selectRandomMovie = (moviePool: GameMovie[], usedIds: number[]) => {
+  const selectRandomMovie = async (moviePool: TMDBMovie[], usedIds: number[]) => {
     // Filter out used movies
     const available = moviePool.filter(m => !usedIds.includes(m.id));
 
@@ -87,15 +87,44 @@ const CastGamePage = () => {
       return;
     }
 
-    // Select a random movie from the available pool
-    const randomMovie = available[Math.floor(Math.random() * available.length)];
-    console.log("Selected movie:", randomMovie);
-    setCurrentMovie(randomMovie);
-    setRevealedCast(1); // Start with 1 cast member revealed
-    setGuessedMovie(null);
-    setWrongGuesses([]); // Clear wrong guesses for new movie
-    setClearMovieSelection(false); // Reset clear selection flag for new movie
-    setCurrentGameGuessCount(0); // Reset guess count for new movie
+    // Keep trying to find a movie with sufficient cast until we find one
+    const maxAttempts = Math.min(10, available.length);
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      // Select a random movie from the available pool
+      const randomTMDBMovie = available[Math.floor(Math.random() * available.length)];
+      console.log("Trying movie:", randomTMDBMovie.title);
+      
+      try {
+        // Fetch cast data for this specific movie
+        const gameMovie = await getGameMovieWithCast(randomTMDBMovie, currentLanguage);
+        
+        if (gameMovie) {
+          console.log("Selected movie with cast:", gameMovie);
+          setCurrentMovie(gameMovie);
+          setRevealedCast(1); // Start with 1 cast member revealed
+          setGuessedMovie(null);
+          setWrongGuesses([]); // Clear wrong guesses for new movie
+          setClearMovieSelection(false); // Reset clear selection flag for new movie
+          setCurrentGameGuessCount(0); // Reset guess count for new movie
+          return;
+        } else {
+          console.log(`Movie ${randomTMDBMovie.title} doesn't have enough valid cast members, trying another...`);
+          // Remove this movie from available pool and try again
+          const index = available.indexOf(randomTMDBMovie);
+          available.splice(index, 1);
+        }
+      } catch (error) {
+        console.warn(`Failed to get cast for movie ${randomTMDBMovie.title}:`, error);
+        // Remove this movie from available pool and try again
+        const index = available.indexOf(randomTMDBMovie);
+        available.splice(index, 1);
+      }
+    }
+    
+    // If we get here, we couldn't find a suitable movie, reload the movie pool
+    console.log("Could not find a movie with sufficient cast, reloading...");
+    loadGameMovies();
   };
 
   const handleMovieGuess = (movie: TMDBMovie) => {
@@ -133,8 +162,8 @@ const CastGamePage = () => {
       });
       
       // Move to next movie after a brief delay
-      setTimeout(() => {
-        selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+      setTimeout(async () => {
+        await selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
       }, 2000);
     } 
     else {
@@ -182,8 +211,8 @@ const CastGamePage = () => {
         
         setUsedMovies(prev => [...prev, currentMovie.id]);
         
-        setTimeout(() => {
-          selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+        setTimeout(async () => {
+          await selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
         }, 3000);
       }
       
@@ -205,7 +234,7 @@ const CastGamePage = () => {
     }
   };
 
-  const skipMovie = () => {
+  const skipMovie = async () => {
     if (!currentMovie) return;
     
     // Add to game history
@@ -232,11 +261,11 @@ const CastGamePage = () => {
       duration: 1500,
     });
     
-    selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+    await selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
     setAttempts(attempts + 1);
   };
 
-  const resetGame = () => {
+  const resetGame = async () => {
     setScore(0);
     setAttempts(0);
     setUsedMovies([]);
@@ -248,7 +277,7 @@ const CastGamePage = () => {
     setGameHistory([]);
     setCurrentGameGuessCount(0);
     if (availableMovies.length > 0) {
-      selectRandomMovie(availableMovies, []);
+      await selectRandomMovie(availableMovies, []);
     } else {
       loadGameMovies();
     }

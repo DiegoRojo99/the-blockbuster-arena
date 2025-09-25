@@ -218,16 +218,16 @@ export async function getMoviesByMode(
 }
 
 /**
- * Get movies for game - supports different modes
+ * Get movies for game - supports different modes (without cast data)
  */
 export async function getGameMovies(
   language: SupportedLanguage = 'en',
   minVoteCount: number = 1000,
   mode: MovieMode = 'popular'
-): Promise<GameMovie[]> {
+): Promise<TMDBMovie[]> {
   try {
     // Get movies based on selected mode
-    const moviesByMode = await getMoviesByMode(mode, language, 3);
+    const moviesByMode = await getMoviesByMode(mode, language, 5);
 
     // Filter movies with sufficient vote count and release date
     const filteredMovies = moviesByMode.filter(movie => 
@@ -236,45 +236,48 @@ export async function getGameMovies(
       !movie.adult
     );
 
-    // Convert to GameMovie format with cast data
-    const gameMovies = await Promise.all(
-      filteredMovies.slice(0, 50).map(async (movie): Promise<GameMovie | null> => {
-        try {
-          const credits = await getMovieCredits(movie.id, language);
-          
-          // Only include movies with at least 6 cast members with profile images
-          const validCast = credits.cast
-            .filter(member => member.profile_path && member.order < 10)
-            .slice(0, 6);
-          
-          if (validCast.length < 6) return null;
-
-          return {
-            id: movie.id,
-            title: movie.title,
-            originalTitle: movie.original_title,
-            year: parseInt(movie.release_date.split('-')[0]),
-            posterPath: movie.poster_path,
-            cast: validCast.map((member): GameCastMember => ({
-              id: member.id,
-              name: member.name,
-              character: member.character,
-              profilePath: member.profile_path,
-              order: member.order
-            }))
-          };
-        } catch (error) {
-          console.warn(`Failed to get credits for movie ${movie.id}:`, error);
-          return null;
-        }
-      })
-    );
-
-    // Filter out null values and return valid movies
-    return gameMovies.filter((movie): movie is GameMovie => movie !== null);
+    // Return up to 200 movies (no cast data fetched yet)
+    return filteredMovies.slice(0, 200);
   } catch (error) {
     console.error('Failed to fetch game movies:', error);
     throw new Error('Failed to load movies for the game');
+  }
+}
+
+/**
+ * Get a specific movie with cast data for gameplay
+ */
+export async function getGameMovieWithCast(
+  movie: TMDBMovie,
+  language: SupportedLanguage = 'en'
+): Promise<GameMovie | null> {
+  try {
+    const credits = await getMovieCredits(movie.id, language);
+    
+    // Only include movies with at least 6 cast members with profile images
+    const validCast = credits.cast
+      .filter(member => member.profile_path && member.order < 10)
+      .slice(0, 6);
+    
+    if (validCast.length < 6) return null;
+
+    return {
+      id: movie.id,
+      title: movie.title,
+      originalTitle: movie.original_title,
+      year: parseInt(movie.release_date.split('-')[0]),
+      posterPath: movie.poster_path,
+      cast: validCast.map((member): GameCastMember => ({
+        id: member.id,
+        name: member.name,
+        character: member.character,
+        profilePath: member.profile_path,
+        order: member.order
+      }))
+    };
+  } catch (error) {
+    console.warn(`Failed to get credits for movie ${movie.id}:`, error);
+    return null;
   }
 }
 
