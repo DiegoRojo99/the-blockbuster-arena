@@ -125,3 +125,29 @@ export interface LanguageOption {
   name: string;
   flag: string;
 }
+
+// Game Mode types
+export type MovieMode = 'popular' | 'top_rated' | 'now_playing' | 'upcoming';
+
+export interface MovieModeOption {
+  id: MovieMode;
+  name: string;
+  description: string;
+  icon: string;
+}
+
+// Game History types
+export interface GameResult {
+  id: string;
+  movieId: number;
+  movieTitle: string;
+  movieYear: number;
+  moviePosterPath: string | null;
+  isCorrect: boolean;
+  guessCount: number;
+  revealedCastCount: number;
+  wrongGuesses: TMDBMovie[];
+  completedAt: Date;
+  mode: MovieMode;
+  language: SupportedLanguage;
+}

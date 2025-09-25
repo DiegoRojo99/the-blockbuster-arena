@@ -6,7 +6,8 @@ import {
   TMDBApiError as TMDBApiErrorType,
   GameMovie,
   GameCastMember,
-  SupportedLanguage
+  SupportedLanguage,
+  MovieMode
 } from '@/types/tmdb';
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
@@ -124,27 +125,112 @@ export async function getTopRatedMovies(
 }
 
 /**
- * Get movies for game - combines popular and top rated with filtering
+ * Get now playing movies
+ */
+export async function getNowPlayingMovies(
+  language: SupportedLanguage = 'en',
+  page: number = 1
+): Promise<TMDBSearchResponse> {
+  return tmdbFetch<TMDBSearchResponse>('/movie/now_playing', {
+    language,
+    page: page.toString(),
+    include_adult: 'false'
+  });
+}
+
+/**
+ * Get upcoming movies
+ */
+export async function getUpcomingMovies(
+  language: SupportedLanguage = 'en',
+  page: number = 1
+): Promise<TMDBSearchResponse> {
+  return tmdbFetch<TMDBSearchResponse>('/movie/upcoming', {
+    language,
+    page: page.toString(),
+    include_adult: 'false'
+  });
+}
+
+/**
+ * Get movies by mode
+ */
+export async function getMoviesByMode(
+  mode: MovieMode,
+  language: SupportedLanguage = 'en',
+  pages: number = 2
+): Promise<TMDBMovie[]> {
+  const promises = [];
+  
+  for (let page = 1; page <= pages; page++) {
+    let apiCall: Promise<TMDBSearchResponse>;
+    
+    switch (mode) {
+      case 'popular':
+        apiCall = getPopularMovies(language, page);
+        break;
+      case 'top_rated':
+        apiCall = getTopRatedMovies(language, page);
+        break;
+      case 'now_playing':
+        apiCall = getNowPlayingMovies(language, page);
+        break;
+      case 'upcoming':
+        apiCall = getUpcomingMovies(language, page);
+        break;
+      default:
+        apiCall = getPopularMovies(language, page);
+    }
+    
+    promises.push(apiCall);
+  }
+  
+  const responses = await Promise.all(promises);
+  let allMovies = responses.flatMap(response => response.results);
+  
+  // Filter movies based on mode requirements
+  if (mode === 'now_playing') {
+    // Only include movies released in the last 2 years for truly recent releases
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    
+    allMovies = allMovies.filter(movie => {
+      if (!movie.release_date) return false;
+      const releaseDate = new Date(movie.release_date);
+      return releaseDate >= twoYearsAgo;
+    });
+  } else if (mode === 'upcoming') {
+    // Only include movies that will be released in the future or very recently (last 3 months)
+    const threeMonthsAgo = new Date();
+    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+    
+    allMovies = allMovies.filter(movie => {
+      if (!movie.release_date) return false;
+      const releaseDate = new Date(movie.release_date);
+      return releaseDate >= threeMonthsAgo;
+    });
+  }
+  
+  // Deduplicate movies
+  return allMovies.filter((movie, index, arr) => 
+    arr.findIndex(m => m.id === movie.id) === index
+  );
+}
+
+/**
+ * Get movies for game - supports different modes
  */
 export async function getGameMovies(
   language: SupportedLanguage = 'en',
-  minVoteCount: number = 1000
+  minVoteCount: number = 1000,
+  mode: MovieMode = 'popular'
 ): Promise<GameMovie[]> {
   try {
-    // Get a mix of popular and top-rated movies
-    const [popularResponse, topRatedResponse] = await Promise.all([
-      getPopularMovies(language),
-      getTopRatedMovies(language)
-    ]);
-
-    // Combine and deduplicate movies
-    const allMovies = [...popularResponse.results, ...topRatedResponse.results];
-    const uniqueMovies = allMovies.filter((movie, index, arr) => 
-      arr.findIndex(m => m.id === movie.id) === index
-    );
+    // Get movies based on selected mode
+    const moviesByMode = await getMoviesByMode(mode, language, 3);
 
     // Filter movies with sufficient vote count and release date
-    const filteredMovies = uniqueMovies.filter(movie => 
+    const filteredMovies = moviesByMode.filter(movie => 
       movie.vote_count >= minVoteCount && 
       movie.release_date &&
       !movie.adult

@@ -5,9 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Trophy, RefreshCw, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
-import { MovieSearch } from "@/components/MovieSearch";
-import { CastReveal } from "@/components/CastReveal";
-import { GameMovie, TMDBMovie } from "@/types/tmdb";
+import { MovieSearch, CastReveal, MovieModeSelector } from "@/components/cast-game";
+import { GameMovie, TMDBMovie, MovieMode, GameResult } from "@/types/tmdb";
 import { getGameMovies, getImageUrl } from "@/services/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -23,20 +22,22 @@ const CastGamePage = () => {
   const [guessedMovie, setGuessedMovie] = useState<TMDBMovie | null>(null);
   const [wrongGuesses, setWrongGuesses] = useState<TMDBMovie[]>([]);
   const [clearMovieSelection, setClearMovieSelection] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<MovieMode>('popular');
+  const [gameHistory, setGameHistory] = useState<GameResult[]>([]);
+  const [currentGameGuessCount, setCurrentGameGuessCount] = useState(0);
   
   const { currentLanguage } = useLanguage();
   const maxReveals = 6;
-  const totalGames = 10;
 
-  // Load movies when component mounts or language changes
+  // Load movies when component mounts or language/mode changes
   useEffect(() => {
     loadGameMovies();
-  }, [currentLanguage]);
+  }, [currentLanguage, selectedMode]);
 
   const loadGameMovies = async () => {
     setIsLoading(true);
     try {
-      const movies = await getGameMovies(currentLanguage, 500);
+      const movies = await getGameMovies(currentLanguage, 500, selectedMode);
       if (movies.length === 0) {
         toast({
           title: "Error loading movies",
@@ -62,28 +63,54 @@ const CastGamePage = () => {
   };
 
   const selectRandomMovie = (moviePool: GameMovie[], usedIds: number[]) => {
+    // Filter out used movies
     const available = moviePool.filter(m => !usedIds.includes(m.id));
+
+    // If no more movies are available, reload from the same mode
     if (available.length === 0) {
-      setGameOver(true);
+      loadGameMovies();
       return;
     }
+
+    // Select a random movie from the available pool
     const randomMovie = available[Math.floor(Math.random() * available.length)];
+    console.log("Selected movie:", randomMovie);
     setCurrentMovie(randomMovie);
     setRevealedCast(1); // Start with 1 cast member revealed
     setGuessedMovie(null);
     setWrongGuesses([]); // Clear wrong guesses for new movie
     setClearMovieSelection(false); // Reset clear selection flag for new movie
+    setCurrentGameGuessCount(0); // Reset guess count for new movie
   };
 
   const handleMovieGuess = (movie: TMDBMovie) => {
     if (!currentMovie) return;
     
     setGuessedMovie(movie);
+    setCurrentGameGuessCount(prev => prev + 1);
     const isCorrect = movie.id === currentMovie.id;
     
     if (isCorrect) {
       setScore(score + 1);
       setUsedMovies(prev => [...prev, currentMovie.id]);
+      
+      // Add to game history
+      const gameResult: GameResult = {
+        id: `${Date.now()}-${currentMovie.id}`,
+        movieId: currentMovie.id,
+        movieTitle: currentMovie.title,
+        movieYear: currentMovie.year,
+        moviePosterPath: currentMovie.posterPath,
+        isCorrect: true,
+        guessCount: currentGameGuessCount + 1,
+        revealedCastCount: revealedCast,
+        wrongGuesses: wrongGuesses,
+        completedAt: new Date(),
+        mode: selectedMode,
+        language: currentLanguage
+      };
+      setGameHistory(prev => [gameResult, ...prev]);
+      
       toast({
         title: "Correct! 🎉",
         description: `It was "${currentMovie.title}" (${currentMovie.year})! You got it with ${revealedCast}/${maxReveals} cast members revealed.`,
@@ -92,12 +119,7 @@ const CastGamePage = () => {
       
       // Move to next movie after a brief delay
       setTimeout(() => {
-        if (usedMovies.length + 1 >= totalGames) {
-          setGameOver(true);
-        } 
-        else {
-          selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
-        }
+        selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
       }, 2000);
     } 
     else {
@@ -126,15 +148,27 @@ const CastGamePage = () => {
           duration: 1500,
         });
         
+        // Add to game history
+        const gameResult: GameResult = {
+          id: `${Date.now()}-${currentMovie.id}`,
+          movieId: currentMovie.id,
+          movieTitle: currentMovie.title,
+          movieYear: currentMovie.year,
+          moviePosterPath: currentMovie.posterPath,
+          isCorrect: false,
+          guessCount: currentGameGuessCount + wrongGuesses.length + 1,
+          revealedCastCount: maxReveals,
+          wrongGuesses: wrongGuesses,
+          completedAt: new Date(),
+          mode: selectedMode,
+          language: currentLanguage
+        };
+        setGameHistory(prev => [gameResult, ...prev]);
+        
         setUsedMovies(prev => [...prev, currentMovie.id]);
         
         setTimeout(() => {
-          if (usedMovies.length + 1 >= totalGames) {
-            setGameOver(true);
-          } 
-          else {
-            selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
-          }
+          selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
         }, 3000);
       }
       
@@ -159,6 +193,23 @@ const CastGamePage = () => {
   const skipMovie = () => {
     if (!currentMovie) return;
     
+    // Add to game history
+    const gameResult: GameResult = {
+      id: `${Date.now()}-${currentMovie.id}`,
+      movieId: currentMovie.id,
+      movieTitle: currentMovie.title,
+      movieYear: currentMovie.year,
+      moviePosterPath: currentMovie.posterPath,
+      isCorrect: false,
+      guessCount: 0, // Skipped, so no guesses
+      revealedCastCount: revealedCast,
+      wrongGuesses: wrongGuesses,
+      completedAt: new Date(),
+      mode: selectedMode,
+      language: currentLanguage
+    };
+    setGameHistory(prev => [gameResult, ...prev]);
+    
     setUsedMovies(prev => [...prev, currentMovie.id]);
     toast({
       title: "Skipped",
@@ -166,13 +217,7 @@ const CastGamePage = () => {
       duration: 1500,
     });
     
-    if (usedMovies.length + 1 >= totalGames) {
-      setGameOver(true);
-    } 
-    else {
-      selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
-    }
-    
+    selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
     setAttempts(attempts + 1);
   };
 
@@ -185,6 +230,8 @@ const CastGamePage = () => {
     setGuessedMovie(null);
     setWrongGuesses([]);
     setClearMovieSelection(false);
+    setGameHistory([]);
+    setCurrentGameGuessCount(0);
     if (availableMovies.length > 0) {
       selectRandomMovie(availableMovies, []);
     } else {
@@ -206,56 +253,41 @@ const CastGamePage = () => {
     );
   }
 
-  if (gameOver) {
-    const percentage = Math.round((score / totalGames) * 100);
-    let resultMessage = "Game Complete!";
-    if (percentage >= 80) resultMessage = "Cinema Expert! 🏆";
-    else if (percentage >= 60) resultMessage = "Movie Buff! 🎬";
-    else if (percentage >= 40) resultMessage = "Getting There! 📈";
-    else resultMessage = "Keep Watching! 📺";
 
-    return (
-      <Layout className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="gradient-card shadow-elevated max-w-md w-full">
-          <CardHeader className="text-center">
-            <Trophy className="w-16 h-16 text-cinema-gold mx-auto mb-4" />
-            <CardTitle className="text-3xl bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
-              {resultMessage}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <div className="text-6xl font-bold text-cinema-gold">{score}/{totalGames}</div>
-            <p className="text-muted-foreground">
-              You guessed {score} out of {totalGames} movies correctly! ({percentage}%)
-            </p>
-            <div className="text-sm text-muted-foreground">
-              Total attempts: {attempts}
-            </div>
-            <div className="space-y-2">
-              <Button onClick={resetGame} className="w-full gradient-gold text-cinema-dark font-semibold">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Play Again
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </Layout>
-    );
-  }
 
   return (
     <Layout className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto pt-4 space-y-6">
-        {/* Header with stats and language selector */}
-        <div className="flex items-center justify-between">
+        {/* Header with stats and mode selector */}
+        <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
           <div className="flex items-center gap-4">
             <Badge variant="secondary">
               <Star className="w-4 h-4 mr-1" />
-              Score: {score}/{totalGames}
+              Correct: {score}
             </Badge>
             <Badge variant="outline">
-              Round: {usedMovies.length + 1}/{totalGames}
+              Played: {gameHistory.length}
             </Badge>
+            {gameHistory.length > 0 && (
+              <Badge variant="default">
+                Success Rate: {Math.round((score / gameHistory.length) * 100)}%
+              </Badge>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <MovieModeSelector 
+              selectedMode={selectedMode}
+              onModeChange={setSelectedMode}
+              disabled={isLoading}
+            />
+            <Button
+              onClick={resetGame}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              New Session
+            </Button>
           </div>
         </div>
 
