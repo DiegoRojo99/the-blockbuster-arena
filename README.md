@@ -1,4 +1,37 @@
-# Welcome to your Lovable project
+# 🎪 The Blockbuster Arena
+
+A collection of interactive movie trivia games built with React, TypeScript, and Tailwind CSS.
+
+## 🎮 Available Games
+
+- **🎭 Cast Guessing Game** (`/cast-game`) - Guess movies based on their cast members
+- **🎬 Grid Categories Game** (`/grid-game`) - Group movies into categories in a grid puzzle
+
+## 🌐 Navigation
+
+The application now features a proper multi-page structure with:
+- **Navigation Bar**: Fixed navigation with links to all games and home page
+- **Responsive Design**: Works on desktop, tablet, and mobile devices  
+- **Individual URLs**: Each game has its own unique URL for easy bookmarking and sharing
+
+## 🏗️ Project Structure
+
+```
+src/
+├── components/
+│   ├── Navigation.tsx      # Main navigation component
+│   ├── Layout.tsx         # Consistent layout wrapper
+│   ├── GameCard.tsx       # Game preview cards
+│   ├── CastGame.tsx       # Original cast game component
+│   ├── GridGame.tsx       # Original grid game component
+│   └── ui/               # Shared UI components
+├── pages/
+│   ├── Index.tsx         # Home page with game selection
+│   ├── CastGamePage.tsx  # Cast guessing game page
+│   ├── GridGamePage.tsx  # Grid categories game page
+│   └── NotFound.tsx      # 404 error page
+└── App.tsx              # Router configuration
+```
 
 ## Project info
 
