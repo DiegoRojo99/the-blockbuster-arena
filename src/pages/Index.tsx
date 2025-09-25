@@ -10,7 +10,7 @@ const Index = () => {
 
   const games = [
     {
-      id: 'cast-game',
+      id: 'cast-game-modes',
       title: 'Cast Guessing',
       description: 'Guess the movie by its cast members',
       icon: '🎭'

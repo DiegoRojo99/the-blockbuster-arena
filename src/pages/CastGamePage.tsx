@@ -2,16 +2,23 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Star, Trophy, RefreshCw, Eye } from "lucide-react";
+import { Star, Trophy, RefreshCw, Eye, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { LanguageSelector } from "@/components/LanguageSelector";
-import { MovieSearch, CastReveal, MovieModeSelector } from "@/components/cast-game";
+import { MovieSearch, CastReveal } from "@/components/cast-game";
 import { GameMovie, TMDBMovie, MovieMode, GameResult } from "@/types/tmdb";
 import { getGameMovies, getImageUrl } from "@/services/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 const CastGamePage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  // Get mode from URL params, fallback to popular
+  const modeParam = searchParams.get('mode') as MovieMode;
+  const selectedMode = ['popular', 'top_rated', 'now_playing', 'upcoming'].includes(modeParam) ? modeParam : 'popular';
+  
   const [currentMovie, setCurrentMovie] = useState<GameMovie | null>(null);
   const [availableMovies, setAvailableMovies] = useState<GameMovie[]>([]);
   const [score, setScore] = useState(0);
@@ -23,11 +30,18 @@ const CastGamePage = () => {
   const [guessedMovie, setGuessedMovie] = useState<TMDBMovie | null>(null);
   const [wrongGuesses, setWrongGuesses] = useState<TMDBMovie[]>([]);
   const [clearMovieSelection, setClearMovieSelection] = useState(false);
-  const [selectedMode, setSelectedMode] = useState<MovieMode>('popular');
   const [gameHistory, setGameHistory] = useState<GameResult[]>([]);
   const [currentGameGuessCount, setCurrentGameGuessCount] = useState(0);
   
   const { currentLanguage } = useLanguage();
+  
+  // Redirect to mode selection if no valid mode is provided
+  useEffect(() => {
+    if (!modeParam || !['popular', 'top_rated', 'now_playing', 'upcoming'].includes(modeParam)) {
+      navigate('/cast-game-modes');
+      return;
+    }
+  }, [modeParam, navigate]);
   const maxReveals = 6;
 
   // Load movies when component mounts or language/mode changes
@@ -259,32 +273,15 @@ const CastGamePage = () => {
   return (
     <Layout className="min-h-screen bg-background p-4">
       <div className="max-w-4xl mx-auto pt-4 space-y-6">
-        {/* Header with stats and mode selector */}
-        <div className="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
-          <div className="flex items-center gap-4">
-            <Badge variant="secondary">
-              <Star className="w-4 h-4 mr-1" />
-              Correct: {score}
-            </Badge>
-            <Badge variant="outline">
-              Played: {gameHistory.length}
-            </Badge>
-            {gameHistory.length > 0 && (
-              <Badge variant="default">
-                Success Rate: {Math.round((score / gameHistory.length) * 100)}%
-              </Badge>
-            )}
-          </div>
-          <div className="flex flex-col md:flex-row gap-3">
-            {/* Language selector - mobile only */}
-            <div className="lg:hidden">
-              <LanguageSelector variant="outline" />
-            </div>
-            <MovieModeSelector 
-              selectedMode={selectedMode}
-              onModeChange={setSelectedMode}
-              disabled={isLoading}
-            />
+        {/* Header with stats and controls */}
+        <div className="flex flex-row gap-4 lg:items-center justify-between">
+          <Link to="/cast-game-modes">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Change Mode
+            </Button>
+          </Link>
+          <div className="flex gap-3">
             <Button
               onClick={resetGame}
               variant="outline"
@@ -294,6 +291,33 @@ const CastGamePage = () => {
               New Session
             </Button>
           </div>
+        </div>
+
+        {/* Current Mode Display */}
+        <div className="text-center">
+          <Badge variant="outline" className="text-lg px-4 py-2">
+            {
+              selectedMode === 'popular' ? '🔥 Popular Movies' : 
+              selectedMode === 'top_rated' ? '⭐ Top Rated' :
+              selectedMode === 'now_playing' ? '🎬 Now Playing' :
+              '🎭 Upcoming Movies'
+            }
+          </Badge>
+        </div>
+
+        <div className="flex items-center justify-center gap-4">
+          <Badge variant="secondary">
+            <Star className="w-4 h-4 mr-1" />
+            Correct: {score}
+          </Badge>
+          <Badge variant="outline">
+            Played: {gameHistory.length}
+          </Badge>
+          {gameHistory.length > 0 && (
+            <Badge variant="default">
+              Success Rate: {Math.round((score / gameHistory.length) * 100)}%
+            </Badge>
+          )}
         </div>
 
         {currentMovie && (

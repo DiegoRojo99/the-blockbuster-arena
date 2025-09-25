@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import CastGamePage from "./pages/CastGamePage";
 import GridGamePage from "./pages/GridGamePage";
+import ModeSelectionPage from "./pages/ModeSelectionPage";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +21,7 @@ const App = () => (
         <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/cast-game-modes" element={<ModeSelectionPage />} />
           <Route path="/cast-game" element={<CastGamePage />} />
           <Route path="/grid-game" element={<GridGamePage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

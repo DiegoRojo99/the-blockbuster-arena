@@ -12,7 +12,7 @@ const Navigation = () => {
 
   const navItems = [
     { path: "/", label: "Home", icon: Home },
-    { path: "/cast-game", label: "Cast Game", icon: Users },
+    { path: "/cast-game-modes", label: "Cast Game", icon: Users },
     // Grid game temporarily hidden
     // { path: "/grid-game", label: "Grid Game", icon: Grid3x3 },
   ];
