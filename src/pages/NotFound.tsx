@@ -24,7 +24,7 @@ const NotFound = () => {
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-muted-foreground">
-              The page you're looking for doesn't exist. Let's get you back to the games!
+              The page you're looking for doesn't exist. Let's get you back to The Blockbuster Arena!
             </p>
             <Link to="/">
               <Button className="gradient-gold text-cinema-dark font-semibold">

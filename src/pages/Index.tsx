@@ -35,15 +35,15 @@ const Index = () => {
           
           <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
             <Badge className="mb-6 gradient-gold text-cinema-dark font-semibold text-lg px-6 py-2">
-              🎪 Cinema Games
+              🎪 The Blockbuster Arena
             </Badge>
             
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-cinema-gold via-cinema-purple to-cinema-blue bg-clip-text text-transparent animate-fade-in">
-              Movie Night Games
+              The Blockbuster Arena
             </h1>
             
             <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
-              Test your movie knowledge with fun, interactive games. From cast guessing to category puzzles!
+              Welcome to The Blockbuster Arena! Test your movie knowledge with fun, interactive games. From cast guessing to category puzzles!
             </p>
             
             <Button 
@@ -88,7 +88,7 @@ const Index = () => {
         <section className="py-20 px-4 bg-gradient-to-b from-background to-cinema-card/30">
           <div className="max-w-6xl mx-auto text-center">
             <h3 className="text-3xl font-bold mb-12 text-foreground">
-              Why You'll Love These Games
+              Why You'll Love The Blockbuster Arena
             </h3>
             
             <div className="grid md:grid-cols-3 gap-8">
