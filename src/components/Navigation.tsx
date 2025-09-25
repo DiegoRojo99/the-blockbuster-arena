@@ -22,9 +22,7 @@ const Navigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <Badge className="gradient-gold text-cinema-dark font-bold text-lg px-4 py-2">
-              🎪 The Blockbuster Arena
-            </Badge>
+            <span className="text-lg font-bold">The Blockbuster Arena</span>
           </Link>
 
           {/* Desktop Navigation */}
