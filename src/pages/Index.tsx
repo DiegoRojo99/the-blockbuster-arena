@@ -33,11 +33,7 @@ const Index = () => {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-background/30 via-background/60 to-background" />
           
-          <div className="relative z-10 text-center max-w-4xl mx-auto px-4">
-            <Badge className="mb-6 gradient-gold text-cinema-dark font-semibold text-lg px-6 py-2">
-              🎪 The Blockbuster Arena
-            </Badge>
-            
+          <div className="relative z-10 text-center max-w-4xl mx-auto px-4">            
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-cinema-gold via-cinema-purple to-cinema-blue bg-clip-text text-transparent animate-fade-in">
               The Blockbuster Arena
             </h1>
