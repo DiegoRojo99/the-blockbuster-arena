@@ -7,7 +7,6 @@ import { toast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
 import { MovieSearch } from "@/components/MovieSearch";
 import { CastReveal } from "@/components/CastReveal";
-import { LanguageSelector } from "@/components/LanguageSelector";
 import { GameMovie, TMDBMovie } from "@/types/tmdb";
 import { getGameMovies, getImageUrl } from "@/services/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -258,7 +257,6 @@ const CastGamePage = () => {
               Round: {usedMovies.length + 1}/{totalGames}
             </Badge>
           </div>
-          <LanguageSelector />
         </div>
 
         {currentMovie && (

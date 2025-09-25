@@ -15,7 +15,6 @@ interface LanguageSelectorProps {
 
 export const LanguageSelector = ({ className, variant = "outline" }: LanguageSelectorProps) => {
   const { currentLanguage, setLanguage, availableLanguages } = useLanguage();
-  
   const currentLang = availableLanguages.find(lang => lang.code === currentLanguage);
 
   return (
