@@ -313,7 +313,7 @@ const CastGamePage = () => {
                       <Button
                         onClick={skipMovie}
                         variant="outline"
-                        className="w-full bg-gradient-to-r from-red-500 to-red-700 text-white max-w-sm mx-auto"
+                        className="w-full bg-gradient-to-r from-red-500 to-red-700 text-white mx-auto"
                       >
                         Skip This Movie
                       </Button>
