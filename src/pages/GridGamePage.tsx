@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Star, Trophy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import Navigation from "@/components/Navigation";
+import Layout from "@/components/Layout";
 
 interface GridItem {
   id: number;
@@ -121,9 +121,7 @@ const GridGamePage = () => {
 
   if (gameComplete) {
     return (
-      <>
-        <Navigation />
-        <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
+      <Layout className="min-h-screen bg-background flex items-center justify-center p-4">
           <Card className="gradient-card shadow-elevated max-w-md w-full">
             <CardHeader className="text-center">
               <Trophy className="w-16 h-16 text-cinema-gold mx-auto mb-4" />
@@ -143,18 +141,13 @@ const GridGamePage = () => {
                 <Button onClick={resetGame} className="w-full gradient-gold text-cinema-dark font-semibold">
                   Play Again
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
+            </div>
+          </CardContent>
+        </Card>
+      </Layout>
     );
-  }
-
-  return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-background p-4 pt-20">
+  }  return (
+    <Layout className="min-h-screen bg-background p-4">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex items-center justify-center">
             <div className="flex items-center gap-4">
@@ -239,9 +232,8 @@ const GridGamePage = () => {
               )}
             </CardContent>
           </Card>
-        </div>
       </div>
-    </>
+    </Layout>
   );
 };
 

@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import GameCard from "@/components/GameCard";
-import Navigation from "@/components/Navigation";
+import Layout from "@/components/Layout";
 import heroCinema from "@/assets/hero-cinema.jpg";
 import { Link } from "react-router-dom";
 
@@ -24,9 +24,7 @@ const Index = () => {
   ];
 
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-background">
+    <Layout className="min-h-screen bg-background">
         {/* Hero Section */}
         <section className="relative h-screen flex items-center justify-center overflow-hidden">
           <div 
@@ -132,8 +130,7 @@ const Index = () => {
             </div>
           </div>
         </section>
-      </div>
-    </>
+    </Layout>
   );
 };
 

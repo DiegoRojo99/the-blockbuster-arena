@@ -2,7 +2,7 @@ import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Navigation from "@/components/Navigation";
+import Layout from "@/components/Layout";
 import { Home } from "lucide-react";
 
 const NotFound = () => {
@@ -13,9 +13,7 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
+    <Layout className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="gradient-card shadow-elevated max-w-md w-full">
           <CardHeader className="text-center">
             <div className="text-6xl mb-4">🎬</div>
@@ -36,8 +34,7 @@ const NotFound = () => {
             </Link>
           </CardContent>
         </Card>
-      </div>
-    </>
+    </Layout>
   );
 };
 

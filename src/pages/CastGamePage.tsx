@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Star, Trophy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import Navigation from "@/components/Navigation";
+import Layout from "@/components/Layout";
 
 interface Movie {
   id: number;
@@ -122,37 +122,32 @@ const CastGamePage = () => {
 
   if (gameOver) {
     return (
-      <>
-        <Navigation />
-        <div className="min-h-screen bg-background flex items-center justify-center p-4 pt-20">
-          <Card className="gradient-card shadow-elevated max-w-md w-full">
-            <CardHeader className="text-center">
-              <Trophy className="w-16 h-16 text-cinema-gold mx-auto mb-4" />
-              <CardTitle className="text-3xl bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
-                Game Complete!
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <div className="text-6xl font-bold text-cinema-gold">{score}</div>
-              <p className="text-muted-foreground">
-                You guessed {score} out of {movies.length} movies correctly!
-              </p>
-              <div className="space-y-2">
-                <Button onClick={resetGame} className="w-full gradient-gold text-cinema-dark font-semibold">
-                  Play Again
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </>
+      <Layout className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="gradient-card shadow-elevated max-w-md w-full">
+          <CardHeader className="text-center">
+            <Trophy className="w-16 h-16 text-cinema-gold mx-auto mb-4" />
+            <CardTitle className="text-3xl bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
+              Game Complete!
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <div className="text-6xl font-bold text-cinema-gold">{score}</div>
+            <p className="text-muted-foreground">
+              You guessed {score} out of {movies.length} movies correctly!
+            </p>
+            <div className="space-y-2">
+              <Button onClick={resetGame} className="w-full gradient-gold text-cinema-dark font-semibold">
+                Play Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </Layout>
     );
   }
 
   return (
-    <>
-      <Navigation />
-      <div className="min-h-screen bg-background p-4 pt-20">
+    <Layout className="min-h-screen bg-background p-4">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="flex items-center justify-center">
             <div className="flex items-center gap-4">
@@ -226,9 +221,8 @@ const CastGamePage = () => {
               </CardContent>
             </Card>
           )}
-        </div>
       </div>
-    </>
+    </Layout>
   );
 };
 
