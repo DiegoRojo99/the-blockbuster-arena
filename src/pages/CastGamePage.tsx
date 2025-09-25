@@ -1,113 +1,138 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Star, Trophy } from "lucide-react";
+import { Star, Trophy, RefreshCw, Eye } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import Layout from "@/components/Layout";
-
-interface Movie {
-  id: number;
-  title: string;
-  cast: string[];
-  year: number;
-  genre: string;
-}
-
-const movies: Movie[] = [
-  {
-    id: 1,
-    title: "The Dark Knight",
-    cast: ["Christian Bale", "Heath Ledger", "Aaron Eckhart", "Michael Caine", "Maggie Gyllenhaal"],
-    year: 2008,
-    genre: "Action"
-  },
-  {
-    id: 2,
-    title: "Inception",
-    cast: ["Leonardo DiCaprio", "Marion Cotillard", "Tom Hardy", "Ellen Page", "Ken Watanabe"],
-    year: 2010,
-    genre: "Sci-Fi"
-  },
-  {
-    id: 3,
-    title: "Pulp Fiction",
-    cast: ["John Travolta", "Samuel L. Jackson", "Uma Thurman", "Bruce Willis", "Ving Rhames"],
-    year: 1994,
-    genre: "Crime"
-  },
-  {
-    id: 4,
-    title: "The Avengers",
-    cast: ["Robert Downey Jr.", "Chris Evans", "Mark Ruffalo", "Chris Hemsworth", "Scarlett Johansson"],
-    year: 2012,
-    genre: "Action"
-  },
-  {
-    id: 5,
-    title: "Forrest Gump",
-    cast: ["Tom Hanks", "Robin Wright", "Gary Sinise", "Mykelti Williamson", "Sally Field"],
-    year: 1994,
-    genre: "Drama"
-  }
-];
+import { MovieSearch } from "@/components/MovieSearch";
+import { CastReveal } from "@/components/CastReveal";
+import { LanguageSelector } from "@/components/LanguageSelector";
+import { GameMovie, TMDBMovie } from "@/types/tmdb";
+import { getGameMovies, getImageUrl } from "@/services/tmdb";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const CastGamePage = () => {
-  const [currentMovie, setCurrentMovie] = useState<Movie | null>(null);
-  const [guess, setGuess] = useState("");
+  const [currentMovie, setCurrentMovie] = useState<GameMovie | null>(null);
+  const [availableMovies, setAvailableMovies] = useState<GameMovie[]>([]);
   const [score, setScore] = useState(0);
   const [attempts, setAttempts] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [usedMovies, setUsedMovies] = useState<number[]>([]);
+  const [revealedCast, setRevealedCast] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [guessedMovie, setGuessedMovie] = useState<TMDBMovie | null>(null);
+  
+  const { currentLanguage } = useLanguage();
+  const maxReveals = 6;
+  const totalGames = 10;
 
-  const getRandomMovie = () => {
-    const availableMovies = movies.filter(m => !usedMovies.includes(m.id));
-    if (availableMovies.length === 0) {
+  // Load movies when component mounts or language changes
+  useEffect(() => {
+    loadGameMovies();
+  }, [currentLanguage]);
+
+  const loadGameMovies = async () => {
+    setIsLoading(true);
+    try {
+      const movies = await getGameMovies(currentLanguage, 500);
+      if (movies.length === 0) {
+        toast({
+          title: "Error loading movies",
+          description: "Could not load movies for the game. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      setAvailableMovies(movies);
+      selectRandomMovie(movies, []);
+    } catch (error) {
+      console.error("Failed to load movies:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load movies. Please check your connection and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const selectRandomMovie = (moviePool: GameMovie[], usedIds: number[]) => {
+    const available = moviePool.filter(m => !usedIds.includes(m.id));
+    if (available.length === 0) {
       setGameOver(true);
       return;
     }
-    const randomMovie = availableMovies[Math.floor(Math.random() * availableMovies.length)];
+    const randomMovie = available[Math.floor(Math.random() * available.length)];
     setCurrentMovie(randomMovie);
+    setRevealedCast(1); // Start with 1 cast member revealed
+    setGuessedMovie(null);
   };
 
-  useEffect(() => {
-    getRandomMovie();
-  }, []);
-
-  const handleGuess = () => {
-    if (!currentMovie || !guess.trim()) return;
-
-    const isCorrect = guess.toLowerCase().includes(currentMovie.title.toLowerCase()) || 
-                     currentMovie.title.toLowerCase().includes(guess.toLowerCase());
+  const handleMovieGuess = (movie: TMDBMovie) => {
+    if (!currentMovie) return;
+    
+    setGuessedMovie(movie);
+    const isCorrect = movie.id === currentMovie.id;
     
     if (isCorrect) {
       setScore(score + 1);
-      setUsedMovies([...usedMovies, currentMovie.id]);
+      setUsedMovies(prev => [...prev, currentMovie.id]);
       toast({
         title: "Correct! 🎉",
-        description: `It was "${currentMovie.title}" (${currentMovie.year})`,
+        description: `It was "${currentMovie.title}" (${currentMovie.year})! You got it with ${revealedCast}/${maxReveals} cast members revealed.`,
       });
-      setGuess("");
-      getRandomMovie();
+      
+      // Move to next movie after a brief delay
+      setTimeout(() => {
+        if (usedMovies.length + 1 >= totalGames) {
+          setGameOver(true);
+        } else {
+          selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+        }
+      }, 2000);
     } else {
       toast({
-        title: "Try Again! 🤔",
-        description: "That's not quite right. Keep guessing!",
+        title: "Incorrect! ❌",
+        description: `That's not the right movie. The correct answer was "${currentMovie.title}".`,
         variant: "destructive"
       });
+      
+      // Move to next movie after showing the correct answer
+      setTimeout(() => {
+        if (usedMovies.length + 1 >= totalGames) {
+          setGameOver(true);
+        } else {
+          selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+        }
+      }, 3000);
     }
+    
     setAttempts(attempts + 1);
   };
 
-  const handleSkip = () => {
+  const revealNextCast = () => {
+    if (revealedCast < maxReveals) {
+      setRevealedCast(prev => prev + 1);
+    }
+  };
+
+  const skipMovie = () => {
     if (!currentMovie) return;
-    setUsedMovies([...usedMovies, currentMovie.id]);
+    
+    setUsedMovies(prev => [...prev, currentMovie.id]);
     toast({
       title: "Skipped",
       description: `It was "${currentMovie.title}" (${currentMovie.year})`,
     });
-    getRandomMovie();
+    
+    if (usedMovies.length + 1 >= totalGames) {
+      setGameOver(true);
+    } else {
+      selectRandomMovie(availableMovies, [...usedMovies, currentMovie.id]);
+    }
+    
     setAttempts(attempts + 1);
   };
 
@@ -116,27 +141,57 @@ const CastGamePage = () => {
     setAttempts(0);
     setUsedMovies([]);
     setGameOver(false);
-    setGuess("");
-    getRandomMovie();
+    setRevealedCast(0);
+    setGuessedMovie(null);
+    if (availableMovies.length > 0) {
+      selectRandomMovie(availableMovies, []);
+    } else {
+      loadGameMovies();
+    }
   };
 
+  if (isLoading) {
+    return (
+      <Layout className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="gradient-card shadow-elevated max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-cinema-gold" />
+            <h3 className="text-lg font-semibold mb-2">Loading Movies</h3>
+            <p className="text-muted-foreground">Getting ready for the ultimate cast guessing challenge...</p>
+          </CardContent>
+        </Card>
+      </Layout>
+    );
+  }
+
   if (gameOver) {
+    const percentage = Math.round((score / totalGames) * 100);
+    let resultMessage = "Game Complete!";
+    if (percentage >= 80) resultMessage = "Cinema Expert! 🏆";
+    else if (percentage >= 60) resultMessage = "Movie Buff! 🎬";
+    else if (percentage >= 40) resultMessage = "Getting There! 📈";
+    else resultMessage = "Keep Watching! 📺";
+
     return (
       <Layout className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="gradient-card shadow-elevated max-w-md w-full">
           <CardHeader className="text-center">
             <Trophy className="w-16 h-16 text-cinema-gold mx-auto mb-4" />
             <CardTitle className="text-3xl bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
-              Game Complete!
+              {resultMessage}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
-            <div className="text-6xl font-bold text-cinema-gold">{score}</div>
+            <div className="text-6xl font-bold text-cinema-gold">{score}/{totalGames}</div>
             <p className="text-muted-foreground">
-              You guessed {score} out of {movies.length} movies correctly!
+              You guessed {score} out of {totalGames} movies correctly! ({percentage}%)
             </p>
+            <div className="text-sm text-muted-foreground">
+              Total attempts: {attempts}
+            </div>
             <div className="space-y-2">
               <Button onClick={resetGame} className="w-full gradient-gold text-cinema-dark font-semibold">
+                <RefreshCw className="w-4 h-4 mr-2" />
                 Play Again
               </Button>
             </div>
@@ -148,79 +203,123 @@ const CastGamePage = () => {
 
   return (
     <Layout className="min-h-screen bg-background p-4">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="flex items-center justify-center">
-            <div className="flex items-center gap-4">
-              <Badge variant="secondary">
-                <Star className="w-4 h-4 mr-1" />
-                Score: {score}
-              </Badge>
-              <Badge variant="outline">
-                Attempts: {attempts}
-              </Badge>
-            </div>
+      <div className="max-w-4xl mx-auto pt-4 space-y-6">
+        {/* Header with stats and language selector */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Badge variant="secondary">
+              <Star className="w-4 h-4 mr-1" />
+              Score: {score}/{totalGames}
+            </Badge>
+            <Badge variant="outline">
+              Round: {usedMovies.length + 1}/{totalGames}
+            </Badge>
           </div>
+          <LanguageSelector />
+        </div>
 
-          {currentMovie && (
+        {currentMovie && (
+          <div className="space-y-6">
+            {/* Cast Display */}
             <Card className="gradient-card shadow-elevated">
               <CardHeader>
-                <CardTitle className="text-2xl text-center bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
+                <CardTitle className="text-xl text-center bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
                   🎭 Guess the Movie by Cast
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
                 <div className="text-center">
-                  <h3 className="text-lg font-semibold mb-4 text-muted-foreground">Cast Members:</h3>
-                  <div className="grid gap-3 max-w-md mx-auto">
-                    {currentMovie.cast.map((actor, index) => (
-                      <div
-                        key={index}
-                        className="gradient-card p-3 rounded-lg border border-border/50 animate-fade-in"
-                        style={{ animationDelay: `${index * 0.1}s` }}
-                      >
-                        <span className="text-foreground font-medium">{actor}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4 max-w-md mx-auto">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Enter movie title..."
-                      value={guess}
-                      onChange={(e) => setGuess(e.target.value)}
-                      onKeyPress={(e) => e.key === 'Enter' && handleGuess()}
-                      className="flex-1"
-                    />
-                    <Button 
-                      onClick={handleGuess}
-                      disabled={!guess.trim()}
-                      className="gradient-gold text-cinema-dark font-semibold"
-                    >
-                      Guess
-                    </Button>
-                  </div>
-                  <Button 
-                    onClick={handleSkip}
-                    variant="outline" 
-                    className="w-full"
-                  >
-                    Skip This Movie
-                  </Button>
-                </div>
-
-                <div className="text-center text-sm text-muted-foreground">
-                  <Badge variant="secondary" className="mr-2">
-                    Genre: {currentMovie.genre}
-                  </Badge>
                   <Badge variant="secondary">
                     Year: {currentMovie.year}
                   </Badge>
                 </div>
+              </CardHeader>
+              <CardContent>
+                <CastReveal 
+                  cast={currentMovie.cast} 
+                  revealedCount={revealedCast}
+                />
+                
+                {revealedCast < maxReveals && !guessedMovie && (
+                  <div className="mt-6 text-center">
+                    <Button
+                      onClick={revealNextCast}
+                      variant="outline"
+                      className="w-full max-w-sm mx-auto"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Reveal Next Cast Member ({revealedCast}/{maxReveals})
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Movie Search & Answer */}
+            <Card className="gradient-card shadow-elevated mx-auto">
+              <CardHeader>
+                <CardTitle className="text-lg text-center">
+                  Your Answer
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {!guessedMovie ? (
+                  <>
+                    <MovieSearch
+                      onMovieSelect={handleMovieGuess}
+                      placeholder="Search for the movie..."
+                      disabled={!!guessedMovie}
+                    />
+                    
+                    <div className="text-center">
+                      <Button
+                        onClick={skipMovie}
+                        variant="outline"
+                        className="w-full bg-gradient-to-r from-red-500 to-red-700 text-white max-w-sm mx-auto"
+                      >
+                        Skip This Movie
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center space-y-4">
+                    {guessedMovie.id === currentMovie.id ? (
+                      <div className="text-green-600">
+                        <Badge className="bg-green-500 text-white text-lg px-4 py-2">
+                          ✅ Correct!
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Badge variant="destructive" className="text-lg px-4 py-2">
+                          ❌ Incorrect
+                        </Badge>
+                        <div className="text-sm text-muted-foreground">
+                          Your guess: <strong>{guessedMovie.title}</strong>
+                        </div>
+                        <div className="text-sm">
+                          Correct answer: <strong className="text-cinema-gold">{currentMovie.title}</strong>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {currentMovie.posterPath && (
+                      <div className="flex justify-center">
+                        <img
+                          src={getImageUrl(currentMovie.posterPath, 'w342') || ''}
+                          alt={currentMovie.title}
+                          className="w-32 h-48 object-cover rounded-lg shadow-md"
+                        />
+                      </div>
+                    )}
+                    
+                    <div className="text-sm text-muted-foreground">
+                      Moving to next movie...
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </Layout>
   );

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Home, Users, Grid3x3, Menu } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { LanguageSelector } from "@/components/LanguageSelector";
 
 const Navigation = () => {
   const location = useLocation();
@@ -48,6 +49,7 @@ const Navigation = () => {
                 </Link>
               );
             })}
+            <LanguageSelector className="ml-2" />
           </div>
 
           {/* Mobile Menu Button */}
