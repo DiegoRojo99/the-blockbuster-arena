@@ -42,7 +42,8 @@ const CastGamePage = () => {
         toast({
           title: "Error loading movies",
           description: "Could not load movies for the game. Please try again.",
-          variant: "destructive"
+          variant: "destructive",
+          duration: 3000,
         });
         return;
       }
@@ -53,7 +54,8 @@ const CastGamePage = () => {
       toast({
         title: "Error",
         description: "Failed to load movies. Please check your connection and try again.",
-        variant: "destructive"
+        variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsLoading(false);
@@ -86,6 +88,7 @@ const CastGamePage = () => {
       toast({
         title: "Correct! 🎉",
         description: `It was "${currentMovie.title}" (${currentMovie.year})! You got it with ${revealedCast}/${maxReveals} cast members revealed.`,
+        duration: 1500,
       });
       
       // Move to next movie after a brief delay
@@ -111,7 +114,8 @@ const CastGamePage = () => {
         toast({
           title: "Incorrect! ❌",
           description: `That's not right. Revealing another cast member...`,
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500,
         });
       } 
       else {
@@ -119,7 +123,8 @@ const CastGamePage = () => {
         toast({
           title: "Game Over for this movie! ❌",
           description: `All cast revealed! It was "${currentMovie.title}" (${currentMovie.year}).`,
-          variant: "destructive"
+          variant: "destructive",
+          duration: 1500,
         });
         
         setUsedMovies(prev => [...prev, currentMovie.id]);
@@ -159,6 +164,7 @@ const CastGamePage = () => {
     toast({
       title: "Skipped",
       description: `It was "${currentMovie.title}" (${currentMovie.year})`,
+      duration: 1500,
     });
     
     if (usedMovies.length + 1 >= totalGames) {
