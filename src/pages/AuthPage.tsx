@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AuthForm } from '@/components/AuthForm'
 import { useAuth } from '@/contexts/AuthContext'
+import heroCinemaImage from '@/assets/hero-cinema.jpg'
 
 const AuthPage = () => {
   const { user, loading } = useAuth()
@@ -31,7 +32,7 @@ const AuthPage = () => {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary/20 via-primary/10 to-background relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <img 
-          src="/hero-cinema.jpg" 
+          src={heroCinemaImage} 
           alt="Cinema theater"
           className="w-full h-full object-cover"
         />
@@ -69,7 +70,7 @@ const AuthPage = () => {
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-md">
           {/* Mobile hero */}
-          <div className="lg:hidden text-center mb-8">
+          <div className="lg:hidden text-center mb-8 pt-4">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent mb-2">
               The Blockbuster Arena
             </h1>
