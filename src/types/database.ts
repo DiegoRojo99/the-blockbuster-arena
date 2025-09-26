@@ -50,6 +50,16 @@ export interface Database {
         Insert: DbCastGameStatsInsert
         Update: DbCastGameStatsUpdate
       }
+      shared_cast_games: {
+        Row: DbSharedCastGame
+        Insert: DbSharedCastGameInsert
+        Update: DbSharedCastGameUpdate
+      }
+      shared_game_attempts: {
+        Row: DbSharedGameAttempt
+        Insert: DbSharedGameAttemptInsert
+        Update: DbSharedGameAttemptUpdate
+      }
       user_game_stats: {
         Row: DbUserGameStats
         Insert: DbUserGameStatsInsert
@@ -501,6 +511,100 @@ export interface GameStatsBreakdown {
   total_played: number
   total_solved: number
   solve_rate: number
+}
+
+// =============================================
+// 10. SHARED CAST GAMES TABLES
+// =============================================
+
+export interface DbSharedCastGame {
+  id: string
+  tmdb_movie_id: number
+  movie_title: string
+  movie_year?: number
+  movie_poster_path?: string
+  cast_data: CastMember[]
+  mode: CastGameMode
+  language: GameLanguage
+  created_by?: string
+  creator_username?: string
+  share_slug: string
+  is_public: boolean
+  total_attempts: number
+  successful_attempts: number
+  created_at: string
+}
+
+export interface DbSharedCastGameInsert {
+  id?: string
+  tmdb_movie_id: number
+  movie_title: string
+  movie_year?: number
+  movie_poster_path?: string
+  cast_data: CastMember[]
+  mode: CastGameMode
+  language: GameLanguage
+  created_by?: string
+  creator_username?: string
+  share_slug: string
+  is_public?: boolean
+  total_attempts?: number
+  successful_attempts?: number
+  created_at?: string
+}
+
+export interface DbSharedCastGameUpdate {
+  id?: never
+  tmdb_movie_id?: never
+  movie_title?: never
+  movie_year?: number
+  movie_poster_path?: string
+  cast_data?: never
+  mode?: never
+  language?: never
+  created_by?: never
+  creator_username?: string
+  share_slug?: never
+  is_public?: boolean
+  total_attempts?: number
+  successful_attempts?: number
+  created_at?: never
+}
+
+export interface DbSharedGameAttempt {
+  id: string
+  shared_game_id: string
+  user_id?: string
+  player_name: string
+  is_correct: boolean
+  guess_count: number
+  cast_revealed_count: number
+  time_taken_seconds?: number
+  completed_at: string
+}
+
+export interface DbSharedGameAttemptInsert {
+  id?: string
+  shared_game_id: string
+  user_id?: string
+  player_name: string
+  is_correct: boolean
+  guess_count: number
+  cast_revealed_count: number
+  time_taken_seconds?: number
+  completed_at?: string
+}
+
+export interface DbSharedGameAttemptUpdate {
+  id?: never
+  shared_game_id?: never
+  user_id?: never
+  player_name?: string
+  is_correct?: never
+  guess_count?: never
+  cast_revealed_count?: never
+  time_taken_seconds?: number
+  completed_at?: never
 }
 
 // =============================================

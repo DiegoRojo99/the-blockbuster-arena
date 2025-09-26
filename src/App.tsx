@@ -13,6 +13,7 @@ import ModeSelectionPage from "./pages/ModeSelectionPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import DatabaseTest from "./pages/DatabaseTest";
+import SharedCastGamePage from "./pages/SharedCastGamePage";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/cast-game-modes" element={<ModeSelectionPage />} />
           <Route path="/cast-game" element={<CastGamePage />} />
           <Route path="/cast-game/:gameSlug" element={<CastGamePage />} />
+          <Route path="/cast-game/shared/:shareSlug" element={<SharedCastGamePage />} />
           <Route path="/grid-game" element={<GridGamePage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

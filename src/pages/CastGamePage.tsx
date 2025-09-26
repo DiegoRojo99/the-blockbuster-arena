@@ -202,6 +202,8 @@ const CastGamePage = () => {
           guessCount={gameState.currentGameGuessCount}
           revealedCastCount={gameState.revealedCast}
           maxReveals={maxReveals}
+          mode={selectedMode}
+          language={currentLanguage}
           onPlayAgain={() => {
             setShowResultModal(false);
             actions.resetGame();

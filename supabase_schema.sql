@@ -15,7 +15,7 @@
 -- =============================================
 
 -- Users table (extends Supabase auth.users)
-CREATE TABLE public.users (
+CREATE TABLE IF NOT EXISTS public.users (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     
     -- Basic Profile
@@ -49,7 +49,7 @@ CREATE TABLE public.users (
 -- =============================================
 
 -- Game types registry
-CREATE TABLE public.game_types (
+CREATE TABLE IF NOT EXISTS public.game_types (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
@@ -70,99 +70,78 @@ CREATE TABLE public.game_types (
     CONSTRAINT valid_game_id CHECK (id ~ '^[a-z_]+$')
 );
 
--- Insert initial game types
+-- Insert initial game types (only if they don't exist)
 INSERT INTO public.game_types (id, name, description, icon, supports_sharing, supports_resuming) VALUES
     ('cast_game', 'Cast Guessing', 'Guess the movie by its cast members', '🎭', true, true),
-    ('grid_game', 'Movie Grid', 'Complete the movie category grid', '🎬', true, false);
+    ('grid_game', 'Movie Grid', 'Complete the movie category grid', '🎬', true, false)
+ON CONFLICT (id) DO NOTHING;
 
 -- =============================================
--- 3. CAST GAME SPECIFIC TABLES
+-- 3. SHARED CAST GAMES (Only games shared by users)
 -- =============================================
 
--- Cast Game Instances (individual games)
-CREATE TABLE public.cast_games (
+-- Shared Cast Games (only created when user clicks "Share Game")
+CREATE TABLE IF NOT EXISTS public.shared_cast_games (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
-    -- Game Configuration
-    mode TEXT NOT NULL, -- 'popular', 'top_rated', 'now_playing', 'upcoming'
-    language TEXT NOT NULL DEFAULT 'en',
-    max_cast_reveals INTEGER DEFAULT 6,
-    
-    -- Movie Data (from TMDB)
+    -- Movie Data (from TMDB - snapshot at time of sharing)
     tmdb_movie_id INTEGER NOT NULL,
     movie_title TEXT NOT NULL,
     movie_year INTEGER,
     movie_poster_path TEXT,
     cast_data JSONB NOT NULL, -- array of cast members with profile images
     
-    -- Game State
-    status TEXT NOT NULL DEFAULT 'active', -- 'active', 'completed', 'abandoned'
-    current_cast_revealed INTEGER DEFAULT 1,
-    total_attempts INTEGER DEFAULT 0,
+    -- Game Configuration (from original game)
+    mode TEXT NOT NULL, -- 'popular', 'top_rated', 'now_playing', 'upcoming'
+    language TEXT NOT NULL DEFAULT 'en',
+    max_cast_reveals INTEGER DEFAULT 6,
     
-    -- Creator & Sharing
-    created_by UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    is_public BOOLEAN DEFAULT false,
-    share_slug TEXT UNIQUE, -- for URLs like /cast-game/quick-movie-123
+    -- Creator Info
+    created_by UUID REFERENCES public.users(id) ON DELETE SET NULL, -- Allow nulls if user deleted
+    creator_username TEXT, -- Snapshot of username at time of creation
+    
+    -- Sharing & Access
+    share_slug TEXT UNIQUE NOT NULL, -- for URLs like /cast-game/quick-movie-123
+    is_public BOOLEAN DEFAULT true,
+    
+    -- Stats
+    total_attempts INTEGER DEFAULT 0,
+    successful_attempts INTEGER DEFAULT 0,
     
     -- Timing
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    completed_at TIMESTAMP WITH TIME ZONE,
-    last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints
     CONSTRAINT valid_mode CHECK (mode IN ('popular', 'top_rated', 'now_playing', 'upcoming')),
-    CONSTRAINT valid_status CHECK (status IN ('active', 'completed', 'abandoned')),
     CONSTRAINT valid_language CHECK (language IN ('en', 'es')),
-    CONSTRAINT valid_cast_reveals CHECK (current_cast_revealed >= 1 AND current_cast_revealed <= max_cast_reveals),
-    CONSTRAINT valid_share_slug CHECK (share_slug IS NULL OR share_slug ~ '^[a-z]+-[a-z]+-[0-9]{3}$')
+    CONSTRAINT valid_share_slug CHECK (share_slug ~ '^[a-z]+-[a-z]+-[0-9]{3}$'),
+    CONSTRAINT valid_stats CHECK (successful_attempts <= total_attempts)
 );
 
--- Cast Game Players (who's playing each game)
-CREATE TABLE public.cast_game_players (
+-- Shared Game Attempts (final results only, not individual guesses)
+CREATE TABLE IF NOT EXISTS public.shared_game_attempts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cast_game_id UUID NOT NULL REFERENCES public.cast_games(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    shared_game_id UUID NOT NULL REFERENCES public.shared_cast_games(id) ON DELETE CASCADE,
     
-    -- Player State
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_attempt_at TIMESTAMP WITH TIME ZONE,
+    -- Player Info (supports both logged in and anonymous users)
+    user_id UUID REFERENCES public.users(id) ON DELETE SET NULL, -- NULL for anonymous
+    player_name TEXT NOT NULL, -- username for logged users, custom name for anonymous
     
-    -- Progress Tracking
-    attempts_made INTEGER DEFAULT 0,
-    has_solved BOOLEAN DEFAULT false,
-    solved_at TIMESTAMP WITH TIME ZONE,
-    cast_revealed_when_solved INTEGER,
-    
-    -- Game-specific player data (flexible)
-    player_data JSONB DEFAULT '{}',
-    
-    -- Constraints
-    UNIQUE(cast_game_id, user_id),
-    CONSTRAINT valid_attempts CHECK (attempts_made >= 0)
-);
-
--- Individual Guess Attempts
-CREATE TABLE public.cast_game_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    cast_game_id UUID NOT NULL REFERENCES public.cast_games(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    
-    -- Attempt Details
-    guessed_tmdb_id INTEGER,
-    guessed_title TEXT NOT NULL,
+    -- Game Result (final outcome only)
     is_correct BOOLEAN NOT NULL,
+    guess_count INTEGER NOT NULL, -- total guesses made
+    cast_revealed_count INTEGER NOT NULL, -- cast members revealed when game ended
     
-    -- Game State at Attempt
-    cast_revealed_count INTEGER NOT NULL,
-    attempt_number INTEGER NOT NULL, -- 1st, 2nd, 3rd for this user in this game
+    -- Optional: Time taken to complete (future feature)
+    time_taken_seconds INTEGER,
     
     -- Timing
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints
+    CONSTRAINT valid_guess_count CHECK (guess_count > 0),
     CONSTRAINT valid_cast_revealed CHECK (cast_revealed_count >= 1 AND cast_revealed_count <= 6),
-    CONSTRAINT valid_attempt_number CHECK (attempt_number > 0)
+    CONSTRAINT valid_time_taken CHECK (time_taken_seconds IS NULL OR time_taken_seconds > 0)
 );
 
 -- =============================================
@@ -170,7 +149,7 @@ CREATE TABLE public.cast_game_attempts (
 -- =============================================
 
 -- Cast Game User Statistics
-CREATE TABLE public.cast_game_stats (
+CREATE TABLE IF NOT EXISTS public.cast_game_stats (
     user_id UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
     
     -- Overall Performance
@@ -220,7 +199,7 @@ CREATE TABLE public.cast_game_stats (
 );
 
 -- Overall User Game Statistics (cross all game types)
-CREATE TABLE public.user_game_stats (
+CREATE TABLE IF NOT EXISTS public.user_game_stats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
     game_type_id TEXT NOT NULL REFERENCES public.game_types(id),
@@ -249,44 +228,100 @@ CREATE TABLE public.user_game_stats (
 -- =============================================
 
 -- User lookups
-CREATE INDEX idx_users_username ON public.users(username);
-CREATE INDEX idx_users_email ON public.users(email);
-CREATE INDEX idx_users_last_active ON public.users(last_active DESC);
+CREATE INDEX IF NOT EXISTS idx_users_username ON public.users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON public.users(email);
+CREATE INDEX IF NOT EXISTS idx_users_last_active ON public.users(last_active DESC);
 
--- Cast Game lookups
-CREATE INDEX idx_cast_games_share_slug ON public.cast_games(share_slug);
-CREATE INDEX idx_cast_games_created_by ON public.cast_games(created_by);
-CREATE INDEX idx_cast_games_status ON public.cast_games(status);
-CREATE INDEX idx_cast_games_mode ON public.cast_games(mode);
-CREATE INDEX idx_cast_games_public ON public.cast_games(is_public) WHERE is_public = true;
-CREATE INDEX idx_cast_games_active ON public.cast_games(last_activity DESC) WHERE status = 'active';
+-- Shared Cast Games lookups
+CREATE INDEX IF NOT EXISTS idx_shared_games_slug ON public.shared_cast_games(share_slug);
+CREATE INDEX IF NOT EXISTS idx_shared_games_creator ON public.shared_cast_games(created_by);
+CREATE INDEX IF NOT EXISTS idx_shared_games_mode ON public.shared_cast_games(mode);
+CREATE INDEX IF NOT EXISTS idx_shared_games_created_at ON public.shared_cast_games(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_shared_games_popular ON public.shared_cast_games(total_attempts DESC);
 
--- Game participation
-CREATE INDEX idx_cast_game_players_user ON public.cast_game_players(user_id);
-CREATE INDEX idx_cast_game_players_game ON public.cast_game_players(cast_game_id);
-CREATE INDEX idx_cast_game_players_solved ON public.cast_game_players(user_id, has_solved);
+-- Shared Game Attempts (for leaderboards and stats)
+CREATE INDEX IF NOT EXISTS idx_shared_attempts_game ON public.shared_game_attempts(shared_game_id);
+CREATE INDEX IF NOT EXISTS idx_shared_attempts_user ON public.shared_game_attempts(user_id);
+CREATE INDEX IF NOT EXISTS idx_shared_attempts_leaderboard ON public.shared_game_attempts(shared_game_id, is_correct DESC, guess_count ASC, completed_at ASC);
 
--- Attempts for leaderboards
-CREATE INDEX idx_cast_game_attempts_game ON public.cast_game_attempts(cast_game_id);
-CREATE INDEX idx_cast_game_attempts_user ON public.cast_game_attempts(user_id);
-CREATE INDEX idx_cast_game_attempts_correct ON public.cast_game_attempts(cast_game_id, is_correct);
+-- Prevent duplicate attempts from same logged-in user for same game (allows multiple anonymous attempts)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shared_attempts_unique_user 
+ON public.shared_game_attempts(shared_game_id, user_id) 
+WHERE user_id IS NOT NULL;
 
 -- Statistics
-CREATE INDEX idx_user_game_stats_lookup ON public.user_game_stats(user_id, game_type_id);
-CREATE INDEX idx_cast_game_stats_streaks ON public.cast_game_stats(best_streak DESC);
-CREATE INDEX idx_cast_game_stats_performance ON public.cast_game_stats(games_solved DESC, total_attempts ASC);
+CREATE INDEX IF NOT EXISTS idx_user_game_stats_lookup ON public.user_game_stats(user_id, game_type_id);
+CREATE INDEX IF NOT EXISTS idx_cast_game_stats_streaks ON public.cast_game_stats(best_streak DESC);
+CREATE INDEX IF NOT EXISTS idx_cast_game_stats_performance ON public.cast_game_stats(games_solved DESC, total_attempts ASC);
 
 -- =============================================
--- 6. ROW LEVEL SECURITY (RLS) POLICIES
+-- 6. HELPER FUNCTIONS
+-- =============================================
+
+-- Function to generate unique share slugs
+CREATE OR REPLACE FUNCTION generate_share_slug()
+RETURNS TEXT AS $$
+DECLARE
+    adjectives TEXT[] := ARRAY['quick', 'epic', 'wild', 'cool', 'smart', 'fast', 'fun', 'bright', 'bold', 'wise'];
+    nouns TEXT[] := ARRAY['movie', 'film', 'cast', 'star', 'hero', 'scene', 'plot', 'story', 'drama', 'action'];
+    slug TEXT;
+    counter INTEGER := 0;
+BEGIN
+    LOOP
+        slug := adjectives[1 + floor(random() * array_length(adjectives, 1))] || '-' ||
+                nouns[1 + floor(random() * array_length(nouns, 1))] || '-' ||
+                LPAD(floor(random() * 1000)::TEXT, 3, '0');
+        
+        -- Check if slug already exists
+        IF NOT EXISTS (SELECT 1 FROM public.shared_cast_games WHERE share_slug = slug) THEN
+            RETURN slug;
+        END IF;
+        
+        counter := counter + 1;
+        IF counter > 100 THEN
+            -- Fallback to UUID-based slug if we can't find a unique one
+            RETURN 'game-' || SUBSTRING(gen_random_uuid()::TEXT FROM 1 FOR 8);
+        END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to update shared game stats when attempt is added
+CREATE OR REPLACE FUNCTION update_shared_game_stats()
+RETURNS TRIGGER AS $$
+BEGIN
+    UPDATE public.shared_cast_games 
+    SET 
+        total_attempts = total_attempts + 1,
+        successful_attempts = successful_attempts + CASE WHEN NEW.is_correct THEN 1 ELSE 0 END
+    WHERE id = NEW.shared_game_id;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-update stats
+DROP TRIGGER IF EXISTS update_shared_game_stats_trigger ON public.shared_game_attempts;
+CREATE TRIGGER update_shared_game_stats_trigger
+    AFTER INSERT ON public.shared_game_attempts
+    FOR EACH ROW
+    EXECUTE FUNCTION update_shared_game_stats();
+
+-- =============================================
+-- 7. ROW LEVEL SECURITY (RLS) POLICIES
 -- =============================================
 
 -- Enable RLS on all tables
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cast_games ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cast_game_players ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cast_game_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shared_cast_games ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shared_game_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cast_game_stats ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_game_stats ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies to avoid conflicts, then recreate
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.users;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.users;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.users;
 
 -- Users can read public profiles, update their own
 CREATE POLICY "Public profiles are viewable by everyone" ON public.users
@@ -298,51 +333,42 @@ CREATE POLICY "Users can update own profile" ON public.users
 CREATE POLICY "Users can insert their own profile" ON public.users
     FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Cast Games: Public games readable by all, private games only by participants
-CREATE POLICY "Public cast games are viewable by everyone" ON public.cast_games
-    FOR SELECT USING (
-        is_public = true 
-        OR created_by = auth.uid() 
-        OR EXISTS (
-            SELECT 1 FROM public.cast_game_players 
-            WHERE cast_game_id = id AND user_id = auth.uid()
-        )
-    );
+-- Drop existing shared game policies
+DROP POLICY IF EXISTS "Anyone can view shared games" ON public.shared_cast_games;
+DROP POLICY IF EXISTS "Anyone can create shared games" ON public.shared_cast_games;
+DROP POLICY IF EXISTS "Creators can update their shared games" ON public.shared_cast_games;
 
-CREATE POLICY "Users can create cast games" ON public.cast_games
-    FOR INSERT WITH CHECK (auth.uid() = created_by);
+-- Shared Cast Games: Anyone can view and create, creators can update
+CREATE POLICY "Anyone can view shared games" ON public.shared_cast_games
+    FOR SELECT TO anon, authenticated
+    USING (true);
 
-CREATE POLICY "Game creators can update their games" ON public.cast_games
-    FOR UPDATE USING (auth.uid() = created_by);
+CREATE POLICY "Anyone can create shared games" ON public.shared_cast_games
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (true);
 
--- Game Players: Users can join games and view their participation
-CREATE POLICY "Users can view game participation" ON public.cast_game_players
-    FOR SELECT USING (
-        user_id = auth.uid() 
-        OR EXISTS (
-            SELECT 1 FROM public.cast_games 
-            WHERE id = cast_game_id AND (is_public = true OR created_by = auth.uid())
-        )
-    );
+CREATE POLICY "Creators can update their shared games" ON public.shared_cast_games
+    FOR UPDATE TO authenticated
+    USING (auth.uid() = created_by);
 
-CREATE POLICY "Users can join games" ON public.cast_game_players
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Drop existing shared game attempts policies
+DROP POLICY IF EXISTS "Anyone can view shared game attempts" ON public.shared_game_attempts;
+DROP POLICY IF EXISTS "Anyone can create shared game attempts" ON public.shared_game_attempts;
 
-CREATE POLICY "Users can update their game participation" ON public.cast_game_players
-    FOR UPDATE USING (auth.uid() = user_id);
+-- Shared Game Attempts: Anyone can view and create attempts
+CREATE POLICY "Anyone can view shared game attempts" ON public.shared_game_attempts
+    FOR SELECT TO anon, authenticated
+    USING (true);
 
--- Attempts: Users can view attempts for games they participate in
-CREATE POLICY "Users can view game attempts" ON public.cast_game_attempts
-    FOR SELECT USING (
-        user_id = auth.uid() 
-        OR EXISTS (
-            SELECT 1 FROM public.cast_games 
-            WHERE id = cast_game_id AND (is_public = true OR created_by = auth.uid())
-        )
-    );
+CREATE POLICY "Anyone can create shared game attempts" ON public.shared_game_attempts
+    FOR INSERT TO anon, authenticated
+    WITH CHECK (true);
 
-CREATE POLICY "Users can create their own attempts" ON public.cast_game_attempts
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Drop existing stats policies
+DROP POLICY IF EXISTS "Public stats are viewable" ON public.cast_game_stats;
+DROP POLICY IF EXISTS "Users can manage their own stats" ON public.cast_game_stats;
+DROP POLICY IF EXISTS "Public game stats are viewable" ON public.user_game_stats;
+DROP POLICY IF EXISTS "Users can manage their own game stats" ON public.user_game_stats;
 
 -- Statistics: Users can view public stats, edit their own
 CREATE POLICY "Public stats are viewable" ON public.cast_game_stats
@@ -365,63 +391,36 @@ CREATE POLICY "Users can manage their own game stats" ON public.user_game_stats
 
 -- Game types are public (read-only for users)
 ALTER TABLE public.game_types ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Game types are viewable by everyone" ON public.game_types;
 CREATE POLICY "Game types are viewable by everyone" ON public.game_types
     FOR SELECT USING (true);
 
 -- =============================================
--- 7. UTILITY FUNCTIONS
+-- 8. ADDITIONAL UTILITY FUNCTIONS
 -- =============================================
 
--- Function to generate unique share slugs
-CREATE OR REPLACE FUNCTION generate_share_slug()
-RETURNS TEXT AS $$
-DECLARE
-    adjectives TEXT[] := ARRAY['quick', 'smart', 'epic', 'wild', 'cool', 'fast', 'bright', 'bold', 'wise', 'great'];
-    nouns TEXT[] := ARRAY['movie', 'guess', 'cast', 'film', 'star', 'scene', 'role', 'show', 'plot', 'hero'];
-    slug TEXT;
-    counter INTEGER := 0;
-BEGIN
-    LOOP
-        slug := adjectives[1 + floor(random() * array_length(adjectives, 1))] || '-' ||
-                nouns[1 + floor(random() * array_length(nouns, 1))] || '-' ||
-                lpad(floor(random() * 1000)::TEXT, 3, '0');
-        
-        -- Check if slug already exists
-        IF NOT EXISTS (SELECT 1 FROM public.cast_games WHERE share_slug = slug) THEN
-            RETURN slug;
-        END IF;
-        
-        counter := counter + 1;
-        IF counter > 100 THEN
-            -- Fallback to UUID-based slug if we can't find a unique one
-            RETURN 'game-' || substring(gen_random_uuid()::TEXT, 1, 8);
-        END IF;
-    END LOOP;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to update user activity
-CREATE OR REPLACE FUNCTION update_user_activity()
+-- Function to update user activity when they complete shared games
+CREATE OR REPLACE FUNCTION update_user_activity_shared()
 RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE public.users 
-    SET last_active = NOW() 
-    WHERE id = NEW.user_id;
+    -- Only update if the attempt is from a logged-in user
+    IF NEW.user_id IS NOT NULL THEN
+        UPDATE public.users 
+        SET last_active = NOW() 
+        WHERE id = NEW.user_id;
+    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger to update user activity on game actions
-CREATE TRIGGER update_user_activity_on_attempt
-    AFTER INSERT ON public.cast_game_attempts
-    FOR EACH ROW EXECUTE FUNCTION update_user_activity();
-
-CREATE TRIGGER update_user_activity_on_join
-    AFTER INSERT ON public.cast_game_players
-    FOR EACH ROW EXECUTE FUNCTION update_user_activity();
+-- Trigger to update user activity on shared game completion
+DROP TRIGGER IF EXISTS update_user_activity_on_shared_attempt ON public.shared_game_attempts;
+CREATE TRIGGER update_user_activity_on_shared_attempt
+    AFTER INSERT ON public.shared_game_attempts
+    FOR EACH ROW EXECUTE FUNCTION update_user_activity_shared();
 
 -- =============================================
--- 8. SAMPLE DATA (Optional - for testing)
+-- 9. SAMPLE DATA (Optional - for testing)
 -- =============================================
 
 -- Note: This will be populated when users sign up and start playing
