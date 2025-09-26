@@ -212,7 +212,7 @@ export const CastGame = ({
           </h2>
           
           <CastReveal 
-            cast={movie.cast.slice(0, revealedCast)} 
+            cast={movie.cast.slice(0, maxReveals)} 
             revealedCount={revealedCast}
           />
         </CardContent>
