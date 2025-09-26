@@ -84,6 +84,11 @@ export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
     await gameRef.current.resetGame();
   }, []);
 
+  const clearSelection = useCallback(() => {
+    setClearMovieSelection(true);
+    setTimeout(() => setClearMovieSelection(false), 100);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -100,6 +105,7 @@ export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
       skipMovie,
       giveUp,
       resetGame,
+      clearSelection,
     },
   };
 };

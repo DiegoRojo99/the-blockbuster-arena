@@ -132,6 +132,9 @@ const CastGamePage = () => {
                   <MovieSearch 
                     onMovieSelect={async (movie) => {
                       const result = await actions.takeGuess(movie);
+                      // Always clear selection after a guess
+                      actions.clearSelection();
+                      
                       if (result.isGameOver) {
                         setIsCorrectGuess(result.isCorrect);
                         setShowResultModal(true);
