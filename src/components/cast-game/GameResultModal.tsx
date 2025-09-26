@@ -2,10 +2,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, RotateCcw, ArrowLeft, Trophy, Target, Eye } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw, ArrowLeft, Trophy, Target, Eye, Share2, Copy, Check } from "lucide-react";
 import { GameMovie } from "@/types/tmdb";
 import { getImageUrl } from "@/services/tmdb";
 import { Link } from "react-router-dom";
+import { useSharedGames } from "@/hooks/use-shared-games";
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+import type { CastGameMode, GameLanguage } from "@/types/shared-games";
 
 interface GameResultModalProps {
   isOpen: boolean;
@@ -14,9 +18,12 @@ interface GameResultModalProps {
   guessCount: number;
   revealedCastCount: number;
   maxReveals: number;
+  mode: string;
+  language: string;
   onPlayAgain: () => void;
   onChangeMode: () => void;
   onOpenChange?: (open: boolean) => void;
+  hideShareButton?: boolean;
 }
 
 export const GameResultModal = ({
@@ -26,10 +33,66 @@ export const GameResultModal = ({
   guessCount,
   revealedCastCount,
   maxReveals,
+  mode,
+  language,
   onPlayAgain,
   onChangeMode,
-  onOpenChange
+  onOpenChange,
+  hideShareButton = false
 }: GameResultModalProps) => {
+  const { shareGame, isSharing, shareUrl, shareError, clearShareState, submitAttempt } = useSharedGames();
+  const { user, userProfile, loading: authLoading } = useAuth();
+  const [showCopied, setShowCopied] = useState(false);
+
+  // Get current user's name for sharing
+  const currentUserName = userProfile?.username || user?.email || 'Anonymous Player';
+  const isLoggedIn = !!user && !authLoading;
+
+  const handleShareGame = async () => {
+    if (!movie) return;
+
+    clearShareState();
+    
+    // Convert cast data to the expected format
+    const castData = movie.cast.slice(0, 6).map((member, index) => ({
+      id: member.id,
+      name: member.name,
+      character: member.character,
+      profile_path: member.profilePath || null,
+      order: index
+    }));
+
+    const gameData = {
+      mode: mode as CastGameMode,
+      language: language as GameLanguage,
+      tmdbMovieId: movie.id,
+      movieTitle: movie.title,
+      movieYear: movie.year,
+      moviePosterPath: movie.posterPath,
+      castData,
+      creatorUsername: currentUserName
+    };
+
+    const url = await shareGame(gameData);
+    if (!url) return;
+
+    const userAttemptData = {
+      shareSlug: url.split('/').pop() || '',
+      playerName: currentUserName,
+      isCorrect,
+      guessCount,
+      castRevealedCount: revealedCastCount,
+      timeTakenSeconds: undefined // Could be added if timing is implemented
+    };
+    
+    // Automatically submit the user's own attempt for their shared game
+    const userAttemptSaved = await submitAttempt(userAttemptData);
+    if (!userAttemptSaved) return;
+
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 2000);
+  };
+
   if (!movie) return null;
 
   return (
@@ -150,28 +213,85 @@ export const GameResultModal = ({
               )}
             </div>
 
+            {/* Share Game Button */}
+            {!hideShareButton && (
+              <div className="flex flex-col items-center gap-2 pt-2 pb-2">
+                {!shareUrl && (
+                  <Button 
+                    variant="secondary"
+                    className="flex items-center gap-2"
+                    onClick={handleShareGame}
+                    disabled={isSharing}
+                  >
+                    <Share2 className="w-4 h-4" />
+                    {isSharing ? 'Creating Share Link...' : 'Share This Challenge'}
+                  </Button>
+                )}
+              
+              {shareUrl && (
+                <div className="flex flex-col items-center gap-2 w-full">
+                  <div className="text-sm text-green-600 font-medium flex items-center gap-1">
+                    {showCopied ? (
+                      <>
+                        <Check className="w-4 h-4" />
+                        Link copied to clipboard!
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-4 h-4" />
+                        Game shared successfully!
+                      </>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 bg-muted p-2 rounded text-xs w-full">
+                    <code className="flex-1 truncate">{shareUrl}</code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(shareUrl);
+                        setShowCopied(true);
+                        setTimeout(() => setShowCopied(false), 2000);
+                      }}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
+                {shareError && (
+                  <div className="text-sm text-red-600 text-center">
+                    {shareError}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <Link to="/cast-game-modes" className="flex-1">
+            {!hideShareButton && (
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Link to="/cast-game-modes" className="flex-1">
+                  <Button 
+                    onClick={onChangeMode}
+                    variant="outline"
+                    className="w-full flex items-center gap-2"
+                    size="lg"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Change Mode
+                  </Button>
+                </Link>
                 <Button 
-                  onClick={onChangeMode}
-                  variant="outline"
-                  className="w-full flex items-center gap-2"
+                  onClick={onPlayAgain}
+                  className="w-full flex md:flex-1 items-center gap-2"
                   size="lg"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Change Mode
+                  <RotateCcw className="w-4 h-4" />
+                  Play Another Round
                 </Button>
-              </Link>
-              <Button 
-                onClick={onPlayAgain}
-                className="w-full flex md:flex-1 items-center gap-2"
-                size="lg"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Play Another Round
-              </Button>
-            </div>
+              </div>
+            )}
 
             {/* Future Stats Placeholder */}
             {/* TODO: Add stats component here when implemented */}

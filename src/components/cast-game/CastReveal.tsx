@@ -14,7 +14,7 @@ interface CastRevealProps {
 export const CastReveal = ({ cast, revealedCount, className }: CastRevealProps) => {
   const [currentlyRevealed, setCurrentlyRevealed] = useState(0);
 
-  // Sort cast by reverse order (highest order numbers first - biggest stars last)
+  // Sort cast by order (highest order numbers first - supporting actors first, protagonists last)
   const sortedCast = [...cast].sort((a, b) => b.order - a.order);
 
   useEffect(() => {

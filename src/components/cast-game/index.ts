@@ -6,3 +6,4 @@ export { GameStats } from './GameStats';
 export { GameControls } from './GameControls';
 export { GameResultDisplay, GameHistory } from './GameResult';
 export { GameResultModal } from './GameResultModal';
+export { CastGame } from './CastGame';
