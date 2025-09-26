@@ -186,6 +186,7 @@ export class SharedCastGameService {
 
   /**
    * Get game stats (for display on game page)
+   * Calculates stats directly from attempts table for accuracy
    */
   static async getGameStats(shareSlug: string): Promise<{
     totalAttempts: number;
@@ -196,13 +197,23 @@ export class SharedCastGameService {
       const game = await this.getSharedGame(shareSlug);
       if (!game) throw new Error('Game not found');
 
-      const successRate = game.total_attempts > 0 
-        ? Math.round((game.successful_attempts / game.total_attempts) * 100)
+      // Get all attempts for this game to calculate real-time stats
+      const { data: attempts, error } = await (supabase as any)
+        .from('shared_game_attempts')
+        .select('is_correct')
+        .eq('shared_game_id', game.id);
+
+      if (error) throw error;
+
+      const totalAttempts = attempts?.length || 0;
+      const successfulAttempts = attempts?.filter(attempt => attempt.is_correct).length || 0;
+      const successRate = totalAttempts > 0 
+        ? Math.round((successfulAttempts / totalAttempts) * 100)
         : 0;
 
       return {
-        totalAttempts: game.total_attempts,
-        successfulAttempts: game.successful_attempts,
+        totalAttempts,
+        successfulAttempts,
         successRate
       };
     } catch (error) {
