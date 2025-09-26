@@ -145,13 +145,11 @@ export async function getUpcomingMovies(
   language: SupportedLanguage = 'en',
   page: number = 1
 ): Promise<TMDBSearchResponse> {
-  const response = await tmdbFetch<TMDBSearchResponse>('/movie/upcoming', {
+  return await tmdbFetch<TMDBSearchResponse>('/movie/upcoming', {
     language,
     page: page.toString(),
     include_adult: 'false'
   });
-  console.log('Upcoming movies:', response.results);
-  return response;
 }
 
 /**
@@ -244,7 +242,6 @@ export async function getGameMovies(
 
     // Return up to 200 movies (no cast data fetched yet)
     const result = filteredMovies.slice(0, 200);
-    console.log(`[getGameMovies] Mode: ${mode}, Total fetched: ${moviesByMode.length}, After filtering: ${result.length}, MinVoteCount: ${effectiveMinVoteCount}`);
     return result;
   } catch (error) {
     console.error('Failed to fetch game movies:', error);
