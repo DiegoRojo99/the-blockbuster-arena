@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, Check } from "lucide-react";
+import { Search, Check, X } from "lucide-react";
 import { TMDBMovie } from "@/types/tmdb";
 import { searchMovies, getImageUrl } from "@/services/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 
 interface MovieSearchProps {
   onMovieSelect: (movie: TMDBMovie) => void;
+  onEmptyGuess?: () => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -20,6 +21,7 @@ interface MovieSearchProps {
 
 export const MovieSearch = ({ 
   onMovieSelect, 
+  onEmptyGuess,
   placeholder = "Search for a movie...", 
   disabled = false,
   className,
@@ -169,13 +171,30 @@ export const MovieSearch = ({
           )}
         </div>
         
-        <Button 
-          onClick={handleSubmit}
-          disabled={disabled || (!selectedMovie && results.length === 0)}
-          className="gradient-gold text-cinema-dark font-semibold"
-        >
-          Submit
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button 
+            onClick={handleSubmit}
+            disabled={disabled || (!selectedMovie && results.length === 0)}
+            className="flex-1 gradient-gold text-cinema-dark font-semibold"
+          >
+            Submit
+          </Button>
+          
+          {onEmptyGuess && (
+            <Button 
+              onClick={() => {
+                onEmptyGuess();
+                clearSelection();
+              }}
+              disabled={disabled}
+              variant="destructive"
+              className="flex-1 sm:flex-initial flex items-center gap-2"
+            >
+              <X className="w-4 h-4" />
+              Empty Guess
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Recent Guesses */}

@@ -9,7 +9,7 @@ import {
   GameControls,
   GameResultModal
 } from "@/components/cast-game";
-import { MovieMode } from "@/types/tmdb";
+import { MovieMode, TMDBMovie } from "@/types/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useGameManager } from "@/hooks/useGameManager";
 
@@ -137,18 +137,42 @@ const CastGamePage = () => {
                         setShowResultModal(true);
                       }
                     }}
+                    onEmptyGuess={async () => {
+                      // Create a dummy movie for empty guess - will always be incorrect
+                      const dummyMovie: TMDBMovie = {
+                        id: -1,
+                        title: "(Empty Guess)",
+                        original_title: "(Empty Guess)",
+                        poster_path: null,
+                        backdrop_path: null,
+                        release_date: "",
+                        overview: "",
+                        vote_average: 0,
+                        vote_count: 0,
+                        genre_ids: [],
+                        original_language: "en",
+                        popularity: 0,
+                        adult: false,
+                        video: false
+                      };
+                      const result = await actions.takeGuess(dummyMovie);
+                      if (result.isGameOver) {
+                        setIsCorrectGuess(result.isCorrect);
+                        setShowResultModal(true);
+                      }
+                    }}
                     shouldClearSelection={clearMovieSelection}
                     disabled={gameState.isLoading}
                   />
                   
                   {/* Wrong Guesses - Inline with search */}
-                  {gameState.wrongGuesses.length > 0 && (
+                  {gameState.wrongGuesses.filter(guess => guess.id !== -1).length > 0 && (
                     <div className="mt-6 p-4 bg-red-50 rounded-lg border border-red-200">
                       <p className="text-sm text-red-700 font-medium mb-3">
-                        ❌ Wrong guesses ({gameState.wrongGuesses.length}):
+                        ❌ Wrong guesses ({gameState.wrongGuesses.filter(guess => guess.id !== -1).length}):
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {gameState.wrongGuesses.map((guess, index) => (
+                        {gameState.wrongGuesses.filter(guess => guess.id !== -1).map((guess, index) => (
                           <span 
                             key={index} 
                             className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm"
