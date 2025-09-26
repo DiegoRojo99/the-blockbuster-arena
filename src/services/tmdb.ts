@@ -145,11 +145,13 @@ export async function getUpcomingMovies(
   language: SupportedLanguage = 'en',
   page: number = 1
 ): Promise<TMDBSearchResponse> {
-  return tmdbFetch<TMDBSearchResponse>('/movie/upcoming', {
+  const response = await tmdbFetch<TMDBSearchResponse>('/movie/upcoming', {
     language,
     page: page.toString(),
     include_adult: 'false'
   });
+  console.log('Upcoming movies:', response.results);
+  return response;
 }
 
 /**
@@ -229,15 +231,21 @@ export async function getGameMovies(
     // Get movies based on selected mode
     const moviesByMode = await getMoviesByMode(mode, language, 5);
 
+    // Adjust vote count threshold based on mode
+    // Upcoming movies typically have lower vote counts since they're new/unreleased
+    const effectiveMinVoteCount = mode === 'upcoming' ? Math.min(minVoteCount, 100) : minVoteCount;
+
     // Filter movies with sufficient vote count and release date
     const filteredMovies = moviesByMode.filter(movie => 
-      movie.vote_count >= minVoteCount && 
+      movie.vote_count >= effectiveMinVoteCount && 
       movie.release_date &&
       !movie.adult
     );
 
     // Return up to 200 movies (no cast data fetched yet)
-    return filteredMovies.slice(0, 200);
+    const result = filteredMovies.slice(0, 200);
+    console.log(`[getGameMovies] Mode: ${mode}, Total fetched: ${moviesByMode.length}, After filtering: ${result.length}, MinVoteCount: ${effectiveMinVoteCount}`);
+    return result;
   } catch (error) {
     console.error('Failed to fetch game movies:', error);
     throw new Error('Failed to load movies for the game');
