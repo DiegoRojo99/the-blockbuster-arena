@@ -291,14 +291,11 @@ export class CastGame {
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       const randomTMDBMovie = available[Math.floor(Math.random() * available.length)];
-      console.log("Trying movie:", randomTMDBMovie.title);
       
       try {
         const gameMovie = await getGameMovieWithCast(randomTMDBMovie, this.language);
         
         if (gameMovie) {
-          console.log("Selected movie with cast:", gameMovie);
-          
           this.updateState({
             currentMovie: gameMovie,
             revealedCast: 1,
@@ -309,12 +306,13 @@ export class CastGame {
           
           this.callbacks.onMovieChange?.(gameMovie);
           return;
-        } else {
-          console.log(`Movie ${randomTMDBMovie.title} doesn't have enough valid cast members, trying another...`);
+        } 
+        else {
           const index = available.indexOf(randomTMDBMovie);
           available.splice(index, 1);
         }
-      } catch (error) {
+      } 
+      catch (error) {
         console.warn(`Failed to get cast for movie ${randomTMDBMovie.title}:`, error);
         const index = available.indexOf(randomTMDBMovie);
         available.splice(index, 1);
@@ -322,7 +320,6 @@ export class CastGame {
     }
     
     // If we get here, reload the movie pool
-    console.log("Could not find a movie with sufficient cast, reloading...");
     await this.initialize();
   }
 }
