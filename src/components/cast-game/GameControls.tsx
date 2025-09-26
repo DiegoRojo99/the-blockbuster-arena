@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Eye, SkipForward, RefreshCw } from "lucide-react";
+import { Eye, Flag } from "lucide-react";
 import { GameState } from "@/lib/CastGame";
 
 interface GameControlsProps {
@@ -31,7 +31,7 @@ export const GameControls = ({
   return (
     <Card className="gradient-card shadow-elevated w-full">
       <CardContent className="p-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Reveal Next Cast Button */}
           <Button
             onClick={onRevealNextCast}
@@ -49,28 +49,16 @@ export const GameControls = ({
             )}
           </Button>
 
-          {/* Skip Movie Button */}
+          {/* Give Up Button */}
           <Button
             onClick={onSkipMovie}
             disabled={!currentMovie || disabled}
-            variant="outline"
+            variant="destructive"
             className="flex items-center gap-2"
             size="sm"
           >
-            <SkipForward className="w-4 h-4" />
-            Skip Movie
-          </Button>
-
-          {/* Reset Game Button */}
-          <Button
-            onClick={onResetGame}
-            disabled={disabled}
-            variant="outline"
-            className="flex items-center gap-2 sm:col-span-2 lg:col-span-1"
-            size="sm"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Reset Game
+            <Flag className="w-4 h-4" />
+            Give Up
           </Button>
         </div>
 

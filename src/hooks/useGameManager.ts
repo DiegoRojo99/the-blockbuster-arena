@@ -59,19 +59,24 @@ export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
   }, [mode, language]);
 
   // Game action handlers
-  const takeGuess = useCallback(async (movie: TMDBMovie): Promise<boolean> => {
-    if (!gameRef.current) return false;
+  const takeGuess = useCallback(async (movie: TMDBMovie): Promise<{ isCorrect: boolean; isGameOver: boolean }> => {
+    if (!gameRef.current) return { isCorrect: false, isGameOver: false };
     return await gameRef.current.takeGuess(movie);
   }, []);
 
-  const revealNextCast = useCallback(async (): Promise<void> => {
-    if (!gameRef.current) return;
-    await gameRef.current.revealNextCast();
+  const revealNextCast = useCallback(async (): Promise<boolean> => {
+    if (!gameRef.current) return false;
+    return await gameRef.current.revealNextCast();
   }, []);
 
   const skipMovie = useCallback(async (): Promise<void> => {
     if (!gameRef.current) return;
     await gameRef.current.skipMovie();
+  }, []);
+
+  const giveUp = useCallback(async (): Promise<void> => {
+    if (!gameRef.current) return;
+    await gameRef.current.giveUp();
   }, []);
 
   const resetGame = useCallback(async (): Promise<void> => {
@@ -93,6 +98,7 @@ export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
       takeGuess,
       revealNextCast,
       skipMovie,
+      giveUp,
       resetGame,
     },
   };

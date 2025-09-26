@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RefreshCw, ArrowLeft } from "lucide-react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
@@ -6,7 +6,8 @@ import Layout from "@/components/Layout";
 import { 
   MovieSearch, 
   CastReveal, 
-  GameControls
+  GameControls,
+  GameResultModal
 } from "@/components/cast-game";
 import { MovieMode } from "@/types/tmdb";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -16,6 +17,10 @@ const CastGamePage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { currentLanguage } = useLanguage();
+  
+  // Modal state for testing
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [isCorrectGuess, setIsCorrectGuess] = useState(true);
   
   // Get mode from URL params, fallback to popular
   const modeParam = searchParams.get('mode') as MovieMode;
@@ -100,8 +105,18 @@ const CastGamePage = () => {
                 <GameControls
                   gameState={gameState}
                   maxReveals={maxReveals}
-                  onRevealNextCast={actions.revealNextCast}
-                  onSkipMovie={actions.skipMovie}
+                  onRevealNextCast={async () => {
+                    const isGameOver = await actions.revealNextCast();
+                    if (isGameOver) {
+                      setIsCorrectGuess(false);
+                      setShowResultModal(true);
+                    }
+                  }}
+                  onSkipMovie={async () => {
+                    await actions.giveUp();
+                    setIsCorrectGuess(false);
+                    setShowResultModal(true);
+                  }}
                   onResetGame={actions.resetGame}
                   disabled={gameState.isLoading}
                 />
@@ -115,7 +130,13 @@ const CastGamePage = () => {
                   </h3>
                   
                   <MovieSearch 
-                    onMovieSelect={actions.takeGuess}
+                    onMovieSelect={async (movie) => {
+                      const result = await actions.takeGuess(movie);
+                      if (result.isGameOver) {
+                        setIsCorrectGuess(result.isCorrect);
+                        setShowResultModal(true);
+                      }
+                    }}
                     shouldClearSelection={clearMovieSelection}
                     disabled={gameState.isLoading}
                   />
@@ -144,6 +165,28 @@ const CastGamePage = () => {
           )}
         </div>
       </div>
+      
+      {/* Test Modal - only shows when we have a movie */}
+      {gameState.currentMovie && (
+        <GameResultModal
+          isOpen={showResultModal}
+          movie={gameState.currentMovie}
+          isCorrect={isCorrectGuess}
+          guessCount={gameState.currentGameGuessCount}
+          revealedCastCount={gameState.revealedCast}
+          maxReveals={maxReveals}
+          onPlayAgain={() => {
+            setShowResultModal(false);
+            actions.resetGame();
+          }}
+          onChangeMode={() => {
+            navigate('/cast-game-modes');
+          }}
+          onOpenChange={(open) => {
+            setShowResultModal(open);
+          }}
+        />
+      )}
     </Layout>
   );
 };

@@ -87,8 +87,8 @@ export class CastGame {
   }
 
   // Take a guess at the movie
-  public async takeGuess(movie: TMDBMovie): Promise<boolean> {
-    if (!this.state.currentMovie) return false;
+  public async takeGuess(movie: TMDBMovie): Promise<{ isCorrect: boolean; isGameOver: boolean }> {
+    if (!this.state.currentMovie) return { isCorrect: false, isGameOver: false };
     
     const isCorrect = movie.id === this.state.currentMovie.id;
     const newGuessCount = this.state.currentGameGuessCount + 1;
@@ -100,16 +100,16 @@ export class CastGame {
 
     if (isCorrect) {
       await this.handleCorrectGuess();
-      return true;
+      return { isCorrect: true, isGameOver: true };
     } else {
-      await this.handleIncorrectGuess(movie);
-      return false;
+      const isGameOver = await this.handleIncorrectGuess(movie);
+      return { isCorrect: false, isGameOver };
     }
   }
 
   // Reveal the next cast member
-  public async revealNextCast(): Promise<void> {
-    if (this.state.revealedCast >= this.maxReveals) return;
+  public async revealNextCast(): Promise<boolean> {
+    if (this.state.revealedCast >= this.maxReveals) return false;
 
     const newRevealCount = this.state.revealedCast + 1;
     const newGuessCount = this.state.currentGameGuessCount + 1;
@@ -119,15 +119,13 @@ export class CastGame {
       currentGameGuessCount: newGuessCount
     });
 
-    if (newRevealCount >= this.maxReveals) {
-      await this.handleGameOver();
-    } else {
-      toast({
-        title: "Cast member revealed",
-        description: `Revealing cast member ${newRevealCount}/${this.maxReveals}`,
-        duration: 1000,
-      });
-    }
+    toast({
+      title: "Cast member revealed",
+      description: `Revealing cast member ${newRevealCount}/${this.maxReveals}`,
+      duration: 1000,
+    });
+    
+    return false; // Game continues (even if all cast revealed, allow final guess)
   }
 
   // Skip the current movie
@@ -147,6 +145,20 @@ export class CastGame {
     this.usedMovies.push(this.state.currentMovie.id);
     
     await this.selectRandomMovie();
+  }
+
+  // Give up on the current movie (for modal display)
+  public async giveUp(): Promise<void> {
+    if (!this.state.currentMovie) return;
+
+    const gameResult = this.createGameResult(false, this.state.currentGameGuessCount);
+    this.addToHistory(gameResult);
+    
+    this.updateState({ attempts: this.state.attempts + 1 });
+    this.usedMovies.push(this.state.currentMovie.id);
+    this.callbacks.onGameComplete?.(gameResult);
+    
+    // Note: Movie progression is now handled by the modal's "Play Again" action
   }
 
   // Reset the entire game
@@ -189,23 +201,16 @@ export class CastGame {
     this.updateState({ score: this.state.score + 1 });
     this.usedMovies.push(this.state.currentMovie.id);
     
-    toast({
-      title: "Correct! 🎉",
-      description: `It was "${this.state.currentMovie.title}" (${this.state.currentMovie.year})! You got it with ${this.state.revealedCast}/${this.maxReveals} cast members revealed.`,
-      duration: 1500,
-    });
-
     this.callbacks.onGameComplete?.(gameResult);
     
-    // Move to next movie after a brief delay
-    setTimeout(async () => {
-      await this.selectRandomMovie();
-    }, 2000);
   }
 
-  private async handleIncorrectGuess(movie: TMDBMovie): Promise<void> {
+  private async handleIncorrectGuess(movie: TMDBMovie): Promise<boolean> {
     const newWrongGuesses = [...this.state.wrongGuesses, movie];
-    this.updateState({ wrongGuesses: newWrongGuesses });
+    this.updateState({ 
+      wrongGuesses: newWrongGuesses,
+      attempts: this.state.attempts + 1
+    });
 
     // Wrong guess - reveal next cast member if available
     if (this.state.revealedCast < this.maxReveals) {
@@ -224,11 +229,13 @@ export class CastGame {
           this.updateState({ guessedMovie: null });
         }
       }, 1500);
+      
+      return false; // Game continues
     } else {
+      // All cast revealed and still wrong - game over
       await this.handleGameOver();
+      return true; // Game over
     }
-
-    this.updateState({ attempts: this.state.attempts + 1 });
   }
 
   private async handleGameOver(): Promise<void> {
@@ -237,19 +244,10 @@ export class CastGame {
     const gameResult = this.createGameResult(false, this.state.currentGameGuessCount);
     this.addToHistory(gameResult);
     
-    toast({
-      title: "All cast revealed! ❌",
-      description: `It was "${this.state.currentMovie.title}" (${this.state.currentMovie.year}). Moving to next movie...`,
-      variant: "destructive",
-      duration: 2000,
-    });
-
     this.callbacks.onGameComplete?.(gameResult);
     this.usedMovies.push(this.state.currentMovie.id);
     
-    setTimeout(async () => {
-      await this.selectRandomMovie();
-    }, 2500);
+    // Note: Movie progression is now handled by the modal's "Play Again" action
   }
 
   private createGameResult(isCorrect: boolean, guessCount: number): GameResult {
