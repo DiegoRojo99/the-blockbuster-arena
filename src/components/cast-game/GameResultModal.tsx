@@ -7,6 +7,7 @@ import { GameMovie } from "@/types/tmdb";
 import { getImageUrl } from "@/services/tmdb";
 import { Link } from "react-router-dom";
 import { useSharedGames } from "@/hooks/use-shared-games";
+import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import type { CastGameMode, GameLanguage } from "@/types/shared-games";
 
@@ -40,7 +41,12 @@ export const GameResultModal = ({
   hideShareButton = false
 }: GameResultModalProps) => {
   const { shareGame, isSharing, shareUrl, shareError, clearShareState, submitAttempt } = useSharedGames();
+  const { user, userProfile, loading: authLoading } = useAuth();
   const [showCopied, setShowCopied] = useState(false);
+
+  // Get current user's name for sharing
+  const currentUserName = userProfile?.username || user?.email || 'Anonymous Player';
+  const isLoggedIn = !!user && !authLoading;
 
   const handleShareGame = async () => {
     if (!movie) return;
@@ -64,7 +70,7 @@ export const GameResultModal = ({
       movieYear: movie.year,
       moviePosterPath: movie.posterPath,
       castData,
-      creatorUsername: 'Anonymous Player' // TODO: Get from auth when implemented
+      creatorUsername: currentUserName
     };
 
     const url = await shareGame(gameData);
@@ -72,7 +78,7 @@ export const GameResultModal = ({
 
     const userAttemptData = {
       shareSlug: url.split('/').pop() || '',
-      playerName: 'Anonymous Player', // TODO: Get from auth when implemented
+      playerName: currentUserName,
       isCorrect,
       guessCount,
       castRevealedCount: revealedCastCount,
@@ -81,7 +87,6 @@ export const GameResultModal = ({
     
     // Automatically submit the user's own attempt for their shared game
     const userAttemptSaved = await submitAttempt(userAttemptData);
-    console.log('User attempt saved:', userAttemptSaved);
     if (!userAttemptSaved) return;
 
     setShowCopied(true);

@@ -68,29 +68,24 @@ export class SharedCastGameService {
    * Get shared game by slug
    */
   static async getSharedGame(shareSlug: string): Promise<SharedCastGame | null> {
-    try {
-      console.log('Fetching shared game with slug:', shareSlug);
-      
+    try {      
       const { data: game, error } = await (supabase as any)
         .from('shared_cast_games')
         .select('*')
         .eq('share_slug', shareSlug)
         .single();
 
-      console.log('Supabase response:', { data: game, error });
-
       if (error) {
         if (error.code === 'PGRST116') {
-          console.log('Game not found for slug:', shareSlug);
           return null; // Not found
         }
         console.error('Supabase error:', error);
         throw error;
       }
 
-      console.log('Game fetched successfully:', game);
       return game;
-    } catch (error) {
+    } 
+    catch (error) {
       console.error('Error fetching shared game:', error);
       throw error;
     }

@@ -10,12 +10,14 @@ import Layout from "@/components/Layout";
 import { useSharedGames } from "@/hooks/use-shared-games";
 import { CastGame } from "@/components/cast-game";
 import { getGameMovieWithCast } from "@/services/tmdb";
+import { useAuth } from "@/contexts/AuthContext";
 import type { SharedCastGame, GameLeaderboard } from "@/types/shared-games";
 import type { GameMovie, TMDBMovie } from "@/types/tmdb";
 
 const SharedCastGamePage = () => {
   const { shareSlug } = useParams<{ shareSlug: string }>();
   const { getGame, getLeaderboard, getStats } = useSharedGames();
+  const { user, userProfile, loading: authLoading } = useAuth();
   
   const [game, setGame] = useState<SharedCastGame | null>(null);
   const [leaderboard, setLeaderboard] = useState<GameLeaderboard[]>([]);
@@ -27,6 +29,7 @@ const SharedCastGamePage = () => {
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [playerName, setPlayerName] = useState("");
   const [tempPlayerName, setTempPlayerName] = useState("");
+  const [hasAlreadyPlayed, setHasAlreadyPlayed] = useState(false);
 
   useEffect(() => {
     if (!shareSlug) return;
@@ -52,6 +55,9 @@ const SharedCastGamePage = () => {
           
           setLeaderboard(leaderboardData);
           setStats(statsData);
+          
+          // Check if logged-in user has already played
+          checkIfUserHasPlayed(leaderboardData);
         } catch (additionalError) {
           console.error('Error loading additional data:', additionalError);
           setLeaderboard([]);
@@ -68,15 +74,41 @@ const SharedCastGamePage = () => {
     loadGameData();
   }, [shareSlug]);
 
-  // Check if user is logged in (you'd replace this with actual auth logic)
-  const isLoggedIn = false; // TODO: Replace with actual auth check
+  // Check if user is logged in using actual auth system
+  const isLoggedIn = !!user && !authLoading;
+  const currentUserName = userProfile?.username || user?.email || "Current User";
+
+  const checkIfUserHasPlayed = (leaderboardData: GameLeaderboard[]) => {
+    if (!isLoggedIn || authLoading || !currentUserName) {
+      setHasAlreadyPlayed(false);
+      return;
+    }
+
+    // Check if the current user's name appears in the leaderboard
+    const userHasPlayed = leaderboardData.some(
+      attempt => attempt.player_name === currentUserName
+    );
+    
+    setHasAlreadyPlayed(userHasPlayed);
+  };
+
+  // Check if user has played whenever leaderboard changes or auth resolves
+  useEffect(() => {
+    if (leaderboard.length >= 0 && !authLoading) {
+      checkIfUserHasPlayed(leaderboard);
+    }
+  }, [leaderboard, isLoggedIn, authLoading]);
 
   const handleStartGame = () => {
+    if (hasAlreadyPlayed) {
+      return; // Don't start if user has already played
+    }
+    
     if (!isLoggedIn) {
       setShowNamePrompt(true);
     } else {
-      // TODO: Get logged in user's name
-      setPlayerName("Current User"); // Replace with actual user name
+      // Use logged in user's name
+      setPlayerName(currentUserName);
       setIsPlaying(true);
     }
   };
@@ -125,7 +157,7 @@ const SharedCastGamePage = () => {
   }
 
   const handleStartPlaying = async () => {
-    if (!game) return;
+    if (!game || (hasAlreadyPlayed && isLoggedIn)) return;
 
     setIsLoading(true);
     try {
@@ -228,9 +260,20 @@ const SharedCastGamePage = () => {
 
         <Card>
           <CardContent className="p-6 text-center">
-            <Button size="lg" onClick={handleStartPlaying}>
-              🎬 Play This Challenge
-            </Button>
+            {hasAlreadyPlayed && isLoggedIn ? (
+              <div className="space-y-3">
+                <Button size="lg" disabled className="cursor-not-allowed opacity-50">
+                  🎬 Already Played
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  You have already completed this challenge. Check your result in the leaderboard below.
+                </p>
+              </div>
+            ) : (
+              <Button size="lg" onClick={handleStartPlaying}>
+                🎬 Play This Challenge
+              </Button>
+            )}
           </CardContent>
         </Card>
 
@@ -240,14 +283,25 @@ const SharedCastGamePage = () => {
               <CardTitle>Leaderboard</CardTitle>
             </CardHeader>
             <CardContent>
-              {leaderboard.slice(0, 5).map((attempt, index) => (
-                <div key={index} className="flex justify-between items-center py-2">
-                  <span>{attempt.player_name}</span>
-                  <Badge variant={attempt.is_correct ? "default" : "secondary"}>
-                    {attempt.is_correct ? 'Won' : 'Lost'}
-                  </Badge>
-                </div>
-              ))}
+              {leaderboard.slice(0, 5).map((attempt, index) => {
+                const isCurrentUser = isLoggedIn && attempt.player_name === currentUserName;
+                return (
+                  <div 
+                    key={index} 
+                    className={`flex justify-between items-center py-2 px-2 rounded ${
+                      isCurrentUser ? 'bg-cinema-gold/10 border border-cinema-gold/20' : ''
+                    }`}
+                  >
+                    <span className={isCurrentUser ? 'font-semibold text-cinema-gold' : ''}>
+                      {attempt.player_name}
+                      {isCurrentUser && ' (You)'}
+                    </span>
+                    <Badge variant={attempt.is_correct ? "default" : "secondary"}>
+                      {attempt.is_correct ? 'Won' : 'Lost'}
+                    </Badge>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}
