@@ -283,7 +283,7 @@ const SharedCastGamePage = () => {
               <CardTitle>Leaderboard</CardTitle>
             </CardHeader>
             <CardContent>
-              {leaderboard.slice(0, 5).map((attempt, index) => {
+              {leaderboard.map((attempt, index) => {
                 const isCurrentUser = isLoggedIn && attempt.player_name === currentUserName;
                 return (
                   <div 
