@@ -7,7 +7,6 @@ import { RefreshCw, Users, Trophy, Target, Calendar } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useSharedGames } from "@/hooks/use-shared-games";
 import type { SharedCastGame, GameLeaderboard } from "@/types/shared-games";
-import { getImageUrl } from "@/services/tmdb";
 
 const SharedCastGamePage = () => {
   const { shareSlug } = useParams<{ shareSlug: string }>();
@@ -26,13 +25,9 @@ const SharedCastGamePage = () => {
       setIsLoading(true);
       setError(null);
       
-      try {
-        console.log('Loading shared game:', shareSlug);
-        
+      try {        
         // Load game first
-        const gameData = await getGame(shareSlug);
-        console.log('Game data loaded:', gameData);
-        
+        const gameData = await getGame(shareSlug);        
         if (!gameData) {
           setError("Game not found");
           return;
@@ -46,9 +41,6 @@ const SharedCastGamePage = () => {
             getLeaderboard(shareSlug),
             getStats(shareSlug)
           ]);
-          
-          console.log('Leaderboard loaded:', leaderboardData);
-          console.log('Stats loaded:', statsData);
           
           setLeaderboard(leaderboardData);
           setStats(statsData);
@@ -67,7 +59,7 @@ const SharedCastGamePage = () => {
     };
 
     loadGameData();
-  }, [shareSlug, getGame, getLeaderboard, getStats]);
+  }, [shareSlug]);
 
   // Redirect to homepage if no shareSlug
   if (!shareSlug) {
@@ -130,40 +122,34 @@ const SharedCastGamePage = () => {
 
   return (
     <Layout className="min-h-screen bg-background p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-4xl mx-auto space-y-6 pt-8">
         
         {/* Game Header */}
         <Card className="gradient-card shadow-elevated">
           <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4">
-              {game.movie_poster_path && (
-                <img
-                  src={getImageUrl(game.movie_poster_path, 'w342')}
-                  alt={`${game.movie_title} poster`}
-                  className="w-24 h-36 object-cover rounded-md mx-auto sm:mx-0"
-                />
-              )}
-              <div className="flex-1 text-center sm:text-left">
-                <CardTitle className="text-2xl mb-2">
-                  Cast Guessing Challenge
-                </CardTitle>
-                <div className="space-y-2">
-                  <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-                    <Badge variant="secondary">
-                      {getModeLabel(game.mode)}
-                    </Badge>
-                    <Badge variant="outline">
-                      {game.language.toUpperCase()}
-                    </Badge>
-                  </div>
-                  <p className="text-muted-foreground">
-                    Created by <span className="font-medium">{game.creator_username || 'Anonymous'}</span>
-                  </p>
-                  <p className="text-sm text-muted-foreground flex items-center justify-center sm:justify-start gap-1">
-                    <Calendar className="w-4 h-4" />
-                    {formatDate(game.created_at)}
-                  </p>
+            <div className="text-center">
+              <CardTitle className="text-2xl mb-4">
+                🎬 Cast Guessing Challenge
+              </CardTitle>
+              <div className="space-y-3">
+                <div className="flex flex-wrap justify-center gap-2">
+                  <Badge variant="secondary">
+                    {getModeLabel(game.mode)}
+                  </Badge>
+                  <Badge variant="outline">
+                    {game.language.toUpperCase()}
+                  </Badge>
                 </div>
+                <p className="text-muted-foreground">
+                  Created by <span className="font-medium">{game.creator_username || 'Anonymous'}</span>
+                </p>
+                <p className="text-sm text-muted-foreground flex items-center justify-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  {formatDate(game.created_at)}
+                </p>
+                <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                  Can you guess this movie by its cast? Click below to start the challenge!
+                </p>
               </div>
             </div>
           </CardHeader>
@@ -199,16 +185,22 @@ const SharedCastGamePage = () => {
         {/* Play Game Button */}
         <Card>
           <CardContent className="p-6 text-center">
-            <Button 
-              size="lg" 
-              className="w-full sm:w-auto"
-              onClick={() => {
-                // TODO: Implement play shared game functionality
-                alert('Play functionality coming soon!');
-              }}
-            >
-              🎬 Play This Challenge
-            </Button>
+            <div className="space-y-4">
+              <Button 
+                size="lg" 
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  // For now, redirect to regular cast game with same mode
+                  window.location.href = `/cast-game?mode=${game.mode}`;
+                }}
+              >
+                🎬 Play This Challenge
+              </Button>
+              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                Note: This will start a new game in {getModeLabel(game.mode)} mode. 
+                Playing the exact shared movie is coming soon!
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -222,7 +214,7 @@ const SharedCastGamePage = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="space-y-2 text-black">
                 {leaderboard.slice(0, 10).map((attempt, index) => (
                   <div 
                     key={`${attempt.player_name}-${attempt.completed_at}`}
@@ -231,7 +223,7 @@ const SharedCastGamePage = () => {
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-sm font-medium">
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-sm text-white font-medium">
                         {index + 1}
                       </div>
                       <div>
