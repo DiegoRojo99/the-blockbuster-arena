@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CheckCircle, XCircle, RotateCcw, ArrowLeft, Trophy, Target, Eye } from "lucide-react";
 import { GameMovie } from "@/types/tmdb";
 import { getImageUrl } from "@/services/tmdb";
@@ -36,6 +36,15 @@ export const GameResultModal = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogOverlay className="bg-black/80" />
       <DialogContent className="max-w-[90vw] sm:max-w-2xl w-full mx-auto sm:mx-4 p-0 overflow-hidden max-h-[95vh] overflow-y-auto">
+        <DialogTitle className="sr-only">
+          {isCorrect ? 'Correct Guess!' : 'Game Over'}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          {isCorrect 
+            ? `You successfully guessed the movie ${movie.title} in ${guessCount} ${guessCount === 1 ? 'guess' : 'guesses'}.`
+            : `You were unable to guess the movie ${movie.title}. The game is over.`
+          }
+        </DialogDescription>
         <div className="gradient-card">
           {/* Header with Result */}
           <CardHeader className={`text-center pb-4 ${
