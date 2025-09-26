@@ -111,14 +111,18 @@ export const CastGame = ({
         setWrongGuesses(prev => [...prev, guessedMovie]);
       }
 
-      // End game if max guesses reached (6 guesses or 6 cast reveals)
-      if (newGuessCount >= 6 || revealedCast >= maxReveals) {
+      // Automatically reveal next cast member after wrong guess
+      const newRevealedCast = Math.min(revealedCast + 1, maxReveals);
+      setRevealedCast(newRevealedCast);
+
+      // End game if all cast members have been revealed
+      if (newRevealedCast >= maxReveals) {
         setIsCorrect(false);
         setGameOver(true);
         setShowResultModal(true);
         
         // Submit attempt for shared games
-        await submitGameAttempt(false, newGuessCount, revealedCast);
+        await submitGameAttempt(false, newGuessCount, newRevealedCast);
       }
     }
 
@@ -151,20 +155,8 @@ export const CastGame = ({
   };
 
   const handleRevealNext = () => {
-    if (disabled || gameOver || revealedCast >= maxReveals) return;
-
-    const newRevealedCast = revealedCast + 1;
-    setRevealedCast(newRevealedCast);
-    
-    // End game if max reveals reached
-    if (newRevealedCast >= maxReveals) {
-      setIsCorrect(false);
-      setGameOver(true);
-      setShowResultModal(true);
-      
-      // Submit attempt for shared games
-      submitGameAttempt(false, guessCount, newRevealedCast);
-    }
+    // Manual reveal is disabled - cast is now revealed automatically after wrong guesses
+    return;
   };
 
   const handleGiveUp = () => {
