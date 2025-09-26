@@ -37,7 +37,7 @@ export const GameResultModal = ({
   onChangeMode,
   onOpenChange
 }: GameResultModalProps) => {
-  const { shareGame, isSharing, shareUrl, shareError, clearShareState } = useSharedGames();
+  const { shareGame, isSharing, shareUrl, shareError, clearShareState, submitAttempt } = useSharedGames();
   const [showCopied, setShowCopied] = useState(false);
 
   const handleShareGame = async () => {
@@ -66,10 +66,24 @@ export const GameResultModal = ({
     };
 
     const url = await shareGame(gameData);
-    if (url) {
-      setShowCopied(true);
-      setTimeout(() => setShowCopied(false), 2000);
-    }
+    if (!url) return;
+
+    const userAttemptData = {
+      shareSlug: url.split('/').pop() || '',
+      playerName: 'Anonymous Player', // TODO: Get from auth when implemented
+      isCorrect,
+      guessCount,
+      castRevealedCount: revealedCastCount,
+      timeTakenSeconds: undefined // Could be added if timing is implemented
+    };
+    
+    // Automatically submit the user's own attempt for their shared game
+    const userAttemptSaved = await submitAttempt(userAttemptData);
+    console.log('User attempt saved:', userAttemptSaved);
+    if (!userAttemptSaved) return;
+
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 2000);
   };
 
   if (!movie) return null;

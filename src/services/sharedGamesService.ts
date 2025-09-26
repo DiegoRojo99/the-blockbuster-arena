@@ -69,17 +69,26 @@ export class SharedCastGameService {
    */
   static async getSharedGame(shareSlug: string): Promise<SharedCastGame | null> {
     try {
+      console.log('Fetching shared game with slug:', shareSlug);
+      
       const { data: game, error } = await (supabase as any)
         .from('shared_cast_games')
         .select('*')
         .eq('share_slug', shareSlug)
         .single();
 
+      console.log('Supabase response:', { data: game, error });
+
       if (error) {
-        if (error.code === 'PGRST116') return null; // Not found
+        if (error.code === 'PGRST116') {
+          console.log('Game not found for slug:', shareSlug);
+          return null; // Not found
+        }
+        console.error('Supabase error:', error);
         throw error;
       }
 
+      console.log('Game fetched successfully:', game);
       return game;
     } catch (error) {
       console.error('Error fetching shared game:', error);
@@ -102,14 +111,19 @@ export class SharedCastGameService {
       
       // Check if user already has an attempt for this game (prevent duplicates)
       if (user) {
-        const { data: existingAttempt } = await (supabase as any)
+        const { data: existingAttempts, error: checkError } = await (supabase as any)
           .from('shared_game_attempts')
           .select('id')
           .eq('shared_game_id', game.id)
           .eq('user_id', user.id)
-          .single();
+          .limit(1);
 
-        if (existingAttempt) {
+        // Only throw error if query failed (not if no records found)
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking existing attempts:', checkError);
+        }
+
+        if (existingAttempts && existingAttempts.length > 0) {
           throw new Error('You have already completed this game');
         }
       }
@@ -145,6 +159,11 @@ export class SharedCastGameService {
    */
   static async getGameLeaderboard(shareSlug: string): Promise<GameLeaderboard[]> {
     try {
+      // First get the game to get its ID
+      const game = await this.getSharedGame(shareSlug);
+      if (!game) return [];
+
+      // Then get attempts for that game
       const { data: attempts, error } = await (supabase as any)
         .from('shared_game_attempts')
         .select(`
@@ -153,12 +172,9 @@ export class SharedCastGameService {
           guess_count,
           cast_revealed_count,
           completed_at,
-          user_id,
-          shared_cast_games!inner (
-            share_slug
-          )
+          user_id
         `)
-        .eq('shared_cast_games.share_slug', shareSlug)
+        .eq('shared_game_id', game.id)
         .order('is_correct', { ascending: false })
         .order('guess_count', { ascending: true })
         .order('cast_revealed_count', { ascending: true })
@@ -211,14 +227,14 @@ export class SharedCastGameService {
       const game = await this.getSharedGame(shareSlug);
       if (!game) return false;
 
-      const { data: attempt } = await (supabase as any)
+      const { data: attempts } = await (supabase as any)
         .from('shared_game_attempts')
         .select('id')
         .eq('shared_game_id', game.id)
         .eq('user_id', user.id)
-        .single();
+        .limit(1);
 
-      return !!attempt;
+      return attempts && attempts.length > 0;
     } catch (error) {
       console.error('Error checking user completion:', error);
       return false;

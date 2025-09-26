@@ -139,10 +139,12 @@ CREATE TABLE IF NOT EXISTS public.shared_game_attempts (
     completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Constraints
-    CONSTRAINT valid_guess_count CHECK (guess_count > 0),
     CONSTRAINT valid_cast_revealed CHECK (cast_revealed_count >= 1 AND cast_revealed_count <= 6),
     CONSTRAINT valid_time_taken CHECK (time_taken_seconds IS NULL OR time_taken_seconds > 0)
 );
+
+-- Drop the valid_guess_count constraint if it exists (allows 0 guesses for give-up scenarios)
+ALTER TABLE public.shared_game_attempts DROP CONSTRAINT IF EXISTS valid_guess_count;
 
 -- =============================================
 -- 4. USER STATISTICS & ACHIEVEMENTS

@@ -27,23 +27,40 @@ const SharedCastGamePage = () => {
       setError(null);
       
       try {
-        const [gameData, leaderboardData, statsData] = await Promise.all([
-          getGame(shareSlug),
-          getLeaderboard(shareSlug),
-          getStats(shareSlug)
-        ]);
-
+        console.log('Loading shared game:', shareSlug);
+        
+        // Load game first
+        const gameData = await getGame(shareSlug);
+        console.log('Game data loaded:', gameData);
+        
         if (!gameData) {
           setError("Game not found");
           return;
         }
 
         setGame(gameData);
-        setLeaderboard(leaderboardData);
-        setStats(statsData);
+
+        // Then load additional data
+        try {
+          const [leaderboardData, statsData] = await Promise.all([
+            getLeaderboard(shareSlug),
+            getStats(shareSlug)
+          ]);
+          
+          console.log('Leaderboard loaded:', leaderboardData);
+          console.log('Stats loaded:', statsData);
+          
+          setLeaderboard(leaderboardData);
+          setStats(statsData);
+        } catch (additionalError) {
+          console.error('Error loading additional data:', additionalError);
+          // Don't fail the whole page for leaderboard/stats errors
+          setLeaderboard([]);
+          setStats({ totalAttempts: 0, successfulAttempts: 0, successRate: 0 });
+        }
       } catch (err) {
         console.error("Error loading game data:", err);
-        setError("Failed to load game");
+        setError(`Failed to load game: ${err instanceof Error ? err.message : 'Unknown error'}`);
       } finally {
         setIsLoading(false);
       }
