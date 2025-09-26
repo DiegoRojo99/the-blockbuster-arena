@@ -3,6 +3,8 @@ import { useParams, Navigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RefreshCw, Users, Trophy, Target, Calendar, ArrowLeft } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useSharedGames } from "@/hooks/use-shared-games";
@@ -22,6 +24,9 @@ const SharedCastGamePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameMovie, setGameMovie] = useState<GameMovie | null>(null);
+  const [showNamePrompt, setShowNamePrompt] = useState(false);
+  const [playerName, setPlayerName] = useState("");
+  const [tempPlayerName, setTempPlayerName] = useState("");
 
   useEffect(() => {
     if (!shareSlug) return;
@@ -62,6 +67,31 @@ const SharedCastGamePage = () => {
 
     loadGameData();
   }, [shareSlug]);
+
+  // Check if user is logged in (you'd replace this with actual auth logic)
+  const isLoggedIn = false; // TODO: Replace with actual auth check
+
+  const handleStartGame = () => {
+    if (!isLoggedIn) {
+      setShowNamePrompt(true);
+    } else {
+      // TODO: Get logged in user's name
+      setPlayerName("Current User"); // Replace with actual user name
+      setIsPlaying(true);
+    }
+  };
+
+  const handleNameSubmit = () => {
+    if (tempPlayerName.trim()) {
+      setPlayerName(tempPlayerName.trim());
+      setShowNamePrompt(false);
+      setIsPlaying(true);
+    }
+  };
+
+  const handleGameFinish = () => {
+    setIsPlaying(false);
+  };
 
   if (!shareSlug) {
     return <Navigate to="/" replace />;
@@ -119,7 +149,8 @@ const SharedCastGamePage = () => {
       const movieWithCast = await getGameMovieWithCast(tmdbMovie, game.language);
       if (movieWithCast) {
         setGameMovie(movieWithCast);
-        setIsPlaying(true);
+        // Check if need name prompt before starting game
+        handleStartGame();
       }
     } catch (err) {
       console.error('Error loading movie:', err);
@@ -146,6 +177,9 @@ const SharedCastGamePage = () => {
             movie={gameMovie}
             mode={game.mode}
             language={game.language}
+            shareSlug={shareSlug}
+            playerName={playerName}
+            onFinish={handleGameFinish}
             onPlayAgain={() => {}}
             onChangeMode={() => setIsPlaying(false)}
           />
@@ -218,6 +252,41 @@ const SharedCastGamePage = () => {
           </Card>
         )}
       </div>
+
+      {/* Name Prompt Dialog */}
+      <Dialog open={showNamePrompt} onOpenChange={setShowNamePrompt}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Enter Your Name</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Please enter your name to save your attempt to the leaderboard.
+            </p>
+            <Input
+              placeholder="Your name"
+              value={tempPlayerName}
+              onChange={(e) => setTempPlayerName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
+            />
+            <div className="flex gap-2">
+              <Button
+                onClick={handleNameSubmit}
+                disabled={!tempPlayerName.trim()}
+                className="flex-1"
+              >
+                Start Challenge
+              </Button>
+              <Button
+                onClick={() => setShowNamePrompt(false)}
+                variant="outline"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

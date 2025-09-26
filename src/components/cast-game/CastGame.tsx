@@ -7,6 +7,7 @@ import {
   GameControls,
   GameResultModal
 } from "@/components/cast-game";
+import { useSharedGames } from "@/hooks/use-shared-games";
 
 interface CastGameProps {
   /** The movie to play with */
@@ -21,14 +22,16 @@ interface CastGameProps {
   onPlayAgain?: () => void;
   /** Called when user wants to change mode/go back */
   onChangeMode?: () => void;
-  /** Called when user makes a guess (for tracking attempts in shared games) */
-  onGuess?: (movie: TMDBMovie, isCorrect: boolean) => void;
-  /** Called when user gives up */
-  onGiveUp?: () => void;
-  /** Called when user reveals next cast member */
-  onRevealCast?: () => void;
   /** Disable game interactions */
   disabled?: boolean;
+  /** For shared games - share slug to save attempts */
+  shareSlug?: string;
+  /** Player name for shared game attempts */
+  playerName?: string;
+  /** Called when attempt is submitted successfully */
+  onAttemptSubmitted?: () => void;
+  /** Called when game finishes (modal closes) */
+  onFinish?: () => void;
 }
 
 export const CastGame = ({
@@ -38,11 +41,14 @@ export const CastGame = ({
   maxReveals = 6,
   onPlayAgain,
   onChangeMode,
-  onGuess,
-  onGiveUp,
-  onRevealCast,
-  disabled = false
+  disabled = false,
+  shareSlug,
+  playerName,
+  onAttemptSubmitted,
+  onFinish
 }: CastGameProps) => {
+  const { submitAttempt } = useSharedGames();
+  
   // Game state
   const [revealedCast, setRevealedCast] = useState(1);
   const [guessCount, setGuessCount] = useState(0);
@@ -51,6 +57,25 @@ export const CastGame = ({
   const [isCorrect, setIsCorrect] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [clearSelection, setClearSelection] = useState(false);
+
+  // Submit attempt for shared games
+  const submitGameAttempt = async (isCorrect: boolean, guessCount: number, castRevealedCount: number) => {
+    if (!shareSlug || !playerName) return;
+
+    try {
+      await submitAttempt({
+        shareSlug,
+        playerName,
+        isCorrect,
+        guessCount,
+        castRevealedCount
+      });
+      
+      onAttemptSubmitted?.();
+    } catch (err) {
+      console.error('Error submitting attempt:', err);
+    }
+  };
 
   // Reset game state when movie changes
   useEffect(() => {
@@ -71,15 +96,16 @@ export const CastGame = ({
     setClearSelection(true);
     
     const correct = guessedMovie.id === movie.id;
-    
-    // Call external callback for tracking
-    onGuess?.(guessedMovie, correct);
 
     if (correct) {
       setIsCorrect(true);
       setGameOver(true);
       setShowResultModal(true);
-    } else {
+      
+      // Submit attempt for shared games
+      await submitGameAttempt(true, newGuessCount, revealedCast);
+    } 
+    else {
       // Add to wrong guesses if it's not an empty guess
       if (guessedMovie.id !== -1) {
         setWrongGuesses(prev => [...prev, guessedMovie]);
@@ -90,6 +116,9 @@ export const CastGame = ({
         setIsCorrect(false);
         setGameOver(true);
         setShowResultModal(true);
+        
+        // Submit attempt for shared games
+        await submitGameAttempt(false, newGuessCount, revealedCast);
       }
     }
 
@@ -127,24 +156,26 @@ export const CastGame = ({
     const newRevealedCast = revealedCast + 1;
     setRevealedCast(newRevealedCast);
     
-    // Call external callback for tracking
-    if (onRevealCast) onRevealCast();
-
     // End game if max reveals reached
     if (newRevealedCast >= maxReveals) {
       setIsCorrect(false);
       setGameOver(true);
       setShowResultModal(true);
+      
+      // Submit attempt for shared games
+      submitGameAttempt(false, guessCount, newRevealedCast);
     }
   };
 
   const handleGiveUp = () => {
     if (disabled || gameOver) return;
 
-    if (onGiveUp) onGiveUp();
     setIsCorrect(false);
     setGameOver(true);
     setShowResultModal(true);
+    
+    // Submit attempt for shared games
+    submitGameAttempt(false, guessCount, revealedCast);
   };
 
   const handlePlayAgain = () => {
@@ -246,7 +277,13 @@ export const CastGame = ({
         language={language}
         onPlayAgain={handlePlayAgain}
         onChangeMode={handleChangeMode}
-        onOpenChange={setShowResultModal}
+        onOpenChange={(open) => {
+          setShowResultModal(open);
+          if (!open && gameOver) {
+            onFinish?.();
+          }
+        }}
+        hideShareButton={!!shareSlug}
       />
     </div>
   );

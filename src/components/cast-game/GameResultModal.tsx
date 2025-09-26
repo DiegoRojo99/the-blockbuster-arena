@@ -22,6 +22,7 @@ interface GameResultModalProps {
   onPlayAgain: () => void;
   onChangeMode: () => void;
   onOpenChange?: (open: boolean) => void;
+  hideShareButton?: boolean;
 }
 
 export const GameResultModal = ({
@@ -35,7 +36,8 @@ export const GameResultModal = ({
   language,
   onPlayAgain,
   onChangeMode,
-  onOpenChange
+  onOpenChange,
+  hideShareButton = false
 }: GameResultModalProps) => {
   const { shareGame, isSharing, shareUrl, shareError, clearShareState, submitAttempt } = useSharedGames();
   const [showCopied, setShowCopied] = useState(false);
@@ -207,18 +209,19 @@ export const GameResultModal = ({
             </div>
 
             {/* Share Game Button */}
-            <div className="flex flex-col items-center gap-2 pt-2 pb-2">
-              {!shareUrl && (
-                <Button 
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                  onClick={handleShareGame}
-                  disabled={isSharing}
-                >
-                  <Share2 className="w-4 h-4" />
-                  {isSharing ? 'Creating Share Link...' : 'Share This Challenge'}
-                </Button>
-              )}
+            {!hideShareButton && (
+              <div className="flex flex-col items-center gap-2 pt-2 pb-2">
+                {!shareUrl && (
+                  <Button 
+                    variant="secondary"
+                    className="flex items-center gap-2"
+                    onClick={handleShareGame}
+                    disabled={isSharing}
+                  >
+                    <Share2 className="w-4 h-4" />
+                    {isSharing ? 'Creating Share Link...' : 'Share This Challenge'}
+                  </Button>
+                )}
               
               {shareUrl && (
                 <div className="flex flex-col items-center gap-2 w-full">
@@ -252,35 +255,38 @@ export const GameResultModal = ({
                 </div>
               )}
               
-              {shareError && (
-                <div className="text-sm text-red-600 text-center">
-                  {shareError}
-                </div>
-              )}
-            </div>
+                {shareError && (
+                  <div className="text-sm text-red-600 text-center">
+                    {shareError}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <Link to="/cast-game-modes" className="flex-1">
+            {!hideShareButton && (
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <Link to="/cast-game-modes" className="flex-1">
+                  <Button 
+                    onClick={onChangeMode}
+                    variant="outline"
+                    className="w-full flex items-center gap-2"
+                    size="lg"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Change Mode
+                  </Button>
+                </Link>
                 <Button 
-                  onClick={onChangeMode}
-                  variant="outline"
-                  className="w-full flex items-center gap-2"
+                  onClick={onPlayAgain}
+                  className="w-full flex md:flex-1 items-center gap-2"
                   size="lg"
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  Change Mode
+                  <RotateCcw className="w-4 h-4" />
+                  Play Another Round
                 </Button>
-              </Link>
-              <Button 
-                onClick={onPlayAgain}
-                className="w-full flex md:flex-1 items-center gap-2"
-                size="lg"
-              >
-                <RotateCcw className="w-4 h-4" />
-                Play Another Round
-              </Button>
-            </div>
+              </div>
+            )}
 
             {/* Future Stats Placeholder */}
             {/* TODO: Add stats component here when implemented */}
