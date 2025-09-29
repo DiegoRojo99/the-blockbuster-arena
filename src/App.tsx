@@ -8,12 +8,13 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import CastGamePage from "./pages/CastGamePage";
-import GridGamePage from "./pages/GridGamePage";
 import ModeSelectionPage from "./pages/ModeSelectionPage";
 import AuthPage from "./pages/AuthPage";
 import ProfilePage from "./pages/ProfilePage";
 import DatabaseTest from "./pages/DatabaseTest";
 import SharedCastGamePage from "./pages/SharedCastGamePage";
+import CategoriesGamePage from "./pages/CategoriesGamePage";
+import AdminCategoryGamesPage from "./pages/AdminCategoryGamesPage";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +35,8 @@ const App = () => (
           <Route path="/cast-game/shared/:shareSlug" element={<SharedCastGamePage />} />
           <Route path="/cast-game/:gameSlug" element={<CastGamePage />} />
           <Route path="/cast-game" element={<CastGamePage />} />
-          <Route path="/grid-game" element={<GridGamePage />} />
+          <Route path="/category-game" element={<CategoriesGamePage />} />
+          <Route path="/admin/category" element={<AdminCategoryGamesPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
