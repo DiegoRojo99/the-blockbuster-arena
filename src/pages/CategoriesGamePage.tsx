@@ -17,9 +17,12 @@ import {
   CategoryAttempt 
 } from "@/types/categories-game";
 import categoryGames from "@/data/categories-game";
+import { getCategoryGameTemplates } from "@/services/categoryGamesService";
 
 const CategoriesGamePage = () => {
-  const [selectedGame, setSelectedGame] = useState<CategoryGameTemplate>(categoryGames[0]);
+  const [selectedGame, setSelectedGame] = useState<CategoryGameTemplate | null>(null);
+  const [availableGames, setAvailableGames] = useState<CategoryGameTemplate[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [gameState, setGameState] = useState<GameState>({
     categories: [],
     movies: [],
@@ -33,18 +36,53 @@ const CategoriesGamePage = () => {
     isWon: false,
     startTime: new Date()
   });
-  const [showGameSelection, setShowGameSelection] = useState(true);
+
+  // Load games and start with a random one
+  useEffect(() => {
+    const loadGames = async () => {
+      try {
+        setIsLoading(true);
+        // Try to get games from database first
+        const dbGames = await getCategoryGameTemplates();
+        
+        // Use database games if available, otherwise fallback to static data
+        const games = dbGames.length > 0 ? dbGames : categoryGames;
+        setAvailableGames(games);
+        
+        // Pick a random game to start with
+        if (games.length > 0) {
+          const randomGame = games[Math.floor(Math.random() * games.length)];
+          setSelectedGame(randomGame);
+          initializeGame(randomGame);
+        }
+      } catch (error) {
+        console.error('Error loading games:', error);
+        // Fallback to static games
+        setAvailableGames(categoryGames);
+        const randomGame = categoryGames[Math.floor(Math.random() * categoryGames.length)];
+        setSelectedGame(randomGame);
+        initializeGame(randomGame);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadGames();
+  }, []);
 
   // Initialize game when a game template is selected
   useEffect(() => {
-    if (selectedGame && !showGameSelection) {
+    if (selectedGame) {
       initializeGame(selectedGame);
     }
-  }, [selectedGame, showGameSelection]);
+  }, [selectedGame]);
 
   const initializeGame = (gameTemplate: CategoryGameTemplate) => {
+    // Ensure we have exactly 16 movies (4 categories × 4 movies each)
+    const gameMovies = gameTemplate.movies.slice(0, 16);
+    
     // Shuffle movies for display
-    const shuffledMovies = [...gameTemplate.movies].sort(() => Math.random() - 0.5);
+    const shuffledMovies = [...gameMovies].sort(() => Math.random() - 0.5);
     
     setGameState({
       categories: gameTemplate.categories,
@@ -100,7 +138,7 @@ const CategoriesGamePage = () => {
     };
 
     if (isCorrect && categoryId) {
-      const categoryName = gameState.categories.find(c => c.id === categoryId)?.name || categoryId;
+      const categoryName = gameState.categories.find(c => c.id === categoryId)?.name || 'Unknown Category';
       
       setGameState(prev => {
         const newCompletedCategories = [...prev.completedCategories, categoryId];
@@ -118,38 +156,60 @@ const CategoriesGamePage = () => {
       });
 
       toast({
-        title: "Correct! 🎉",
+        title: "Perfect! 🎉",
         description: `You found the "${categoryName}" category!`,
       });
 
+      // Check if this was the last category
       if (gameState.completedCategories.length === gameState.categories.length - 1) {
-        toast({
-          title: "Congratulations! 🏆",
-          description: "You've completed all categories!",
-        });
+        setTimeout(() => {
+          toast({
+            title: "Congratulations! 🏆",
+            description: "You've completed all categories! Amazing work!",
+          });
+        }, 1000);
       }
     } else {
+      const mistakesRemaining = gameState.maxMistakes - gameState.mistakeCount - 1;
+      const isGameOver = mistakesRemaining <= 0;
+      
       setGameState(prev => ({
         ...prev,
         selectedMovies: [],
         mistakeCount: prev.mistakeCount + 1,
         attemptHistory: [...prev.attemptHistory, attempt],
-        isComplete: prev.mistakeCount + 1 >= prev.maxMistakes,
+        isComplete: isGameOver,
         isWon: false,
-        endTime: prev.mistakeCount + 1 >= prev.maxMistakes ? new Date() : prev.endTime
+        endTime: isGameOver ? new Date() : prev.endTime
       }));
 
-      toast({
-        title: "Not quite right 🤔",
-        description: `${gameState.maxMistakes - gameState.mistakeCount - 1} mistakes remaining`,
-        variant: "destructive"
-      });
+      if (isGameOver) {
+        toast({
+          title: "Game Over 😔",
+          description: "No more attempts remaining. Try again!",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Not quite right 🤔",
+          description: `${mistakesRemaining} attempt${mistakesRemaining !== 1 ? 's' : ''} remaining`,
+          variant: "destructive"
+        });
+      }
     }
   };
 
   const resetGame = () => {
     if (selectedGame) {
       initializeGame(selectedGame);
+    }
+  };
+
+  const startNewRandomGame = () => {
+    if (availableGames.length > 0) {
+      const randomGame = availableGames[Math.floor(Math.random() * availableGames.length)];
+      setSelectedGame(randomGame);
+      initializeGame(randomGame);
     }
   };
 
@@ -162,58 +222,13 @@ const CategoriesGamePage = () => {
     setGameState(prev => ({ ...prev, selectedMovies: [] }));
   };
 
-  // Game selection screen
-  if (showGameSelection) {
+  // Loading screen
+  if (isLoading || !selectedGame) {
     return (
-      <Layout className="min-h-screen bg-background p-4">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="text-center space-y-4">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
-              🎯 Categories Game
-            </h1>
-            <p className="text-muted-foreground">
-              Group 16 movies into 4 categories of 4 movies each
-            </p>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {categoryGames.map((game) => (
-              <Card 
-                key={game.id} 
-                className="gradient-card shadow-elevated cursor-pointer hover:scale-105 transition-transform"
-                onClick={() => {
-                  setSelectedGame(game);
-                  setShowGameSelection(false);
-                }}
-              >
-                <CardHeader>
-                  <CardTitle className="text-lg">{game.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{game.description}</p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Difficulty:</span>
-                      <Badge variant={
-                        game.config.gameDifficulty === 'beginner' ? 'default' :
-                        game.config.gameDifficulty === 'intermediate' ? 'secondary' :
-                        game.config.gameDifficulty === 'advanced' ? 'outline' : 'destructive'
-                      }>
-                        {game.config.gameDifficulty}
-                      </Badge>
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {game.tags.map(tag => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <Layout className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cinema-gold mx-auto"></div>
+          <p className="text-muted-foreground">Loading game...</p>
         </div>
       </Layout>
     );
@@ -250,11 +265,11 @@ const CategoriesGamePage = () => {
                 Play Again
               </Button>
               <Button 
-                onClick={() => setShowGameSelection(true)} 
+                onClick={startNewRandomGame} 
                 variant="outline" 
                 className="w-full"
               >
-                Choose Different Game
+                New Random Game
               </Button>
             </div>
           </CardContent>
@@ -274,12 +289,12 @@ const CategoriesGamePage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <Button 
-            onClick={() => setShowGameSelection(true)}
+            onClick={startNewRandomGame}
             variant="outline"
             size="sm"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Games
+            <Shuffle className="w-4 h-4 mr-2" />
+            New Game
           </Button>
           
           <div className="flex items-center gap-4">
@@ -312,65 +327,132 @@ const CategoriesGamePage = () => {
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {availableMovies.map((movie, index) => {
+            {/* 4x4 Movie Grid */}
+            <div className="grid grid-cols-4 gap-3">
+              {availableMovies.slice(0, 16).map((movie, index) => {
                 const isSelected = gameState.selectedMovies.find(m => m.id === movie.id);
-                const category = gameState.categories.find(c => c.id === movie.categoryId);
                 
                 return (
-                  <Button
+                  <Card
                     key={movie.id}
-                    onClick={() => handleMovieClick(movie)}
-                    variant="outline"
                     className={cn(
-                      "h-20 text-wrap text-sm font-medium transition-all duration-200 animate-fade-in",
-                      isSelected && "ring-2 ring-cinema-gold bg-cinema-gold/10"
+                      "cursor-pointer transition-all duration-200 hover:scale-105 animate-fade-in",
+                      isSelected 
+                        ? "ring-2 ring-cinema-gold bg-cinema-gold/10 shadow-lg" 
+                        : "hover:shadow-md"
                     )}
+                    onClick={() => handleMovieClick(movie)}
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
-                    {movie.title}
-                  </Button>
+                    <CardContent className="p-3 text-center">
+                      {movie.poster && (
+                        <img
+                          src={movie.poster}
+                          alt={movie.title}
+                          className="w-full h-20 object-cover rounded-md mb-2"
+                        />
+                      )}
+                      <p className="text-xs font-medium line-clamp-2">
+                        {movie.title}
+                      </p>
+                      {isSelected && (
+                        <div className="mt-1">
+                          <Badge variant="secondary" className="text-xs">
+                            Selected
+                          </Badge>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
 
-            <div className="flex justify-center gap-4">
-              <Button
-                onClick={handleSubmitAttempt}
-                disabled={gameState.selectedMovies.length !== 4}
-                className="gradient-gold text-cinema-dark font-semibold"
-              >
-                Submit Group ({gameState.selectedMovies.length}/4)
-              </Button>
-              <Button
-                onClick={clearSelection}
-                variant="outline"
-                disabled={gameState.selectedMovies.length === 0}
-              >
-                Clear Selection
-              </Button>
+            {/* Action buttons and selection info */}
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Select 4 movies that belong to the same category
+                </p>
+                <div className="flex justify-center gap-2">
+                  {[1, 2, 3, 4].map((num) => (
+                    <div
+                      key={num}
+                      className={cn(
+                        "w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-medium",
+                        gameState.selectedMovies.length >= num
+                          ? "bg-cinema-gold border-cinema-gold text-cinema-dark"
+                          : "border-muted-foreground/30 text-muted-foreground"
+                      )}
+                    >
+                      {num}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-4">
+                <Button
+                  onClick={handleSubmitAttempt}
+                  disabled={gameState.selectedMovies.length !== 4}
+                  className="gradient-gold text-cinema-dark font-semibold px-8"
+                >
+                  Submit Group
+                </Button>
+                <Button
+                  onClick={clearSelection}
+                  variant="outline"
+                  disabled={gameState.selectedMovies.length === 0}
+                >
+                  Clear Selection
+                </Button>
+              </div>
             </div>
 
+            {/* Completed Categories */}
             {gameState.completedCategories.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground text-center">
-                  Completed Categories:
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-center text-muted-foreground">
+                  Solved Categories ({gameState.completedCategories.length}/4):
                 </h3>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="space-y-3">
                   {gameState.completedCategories.map((categoryId) => {
                     const category = gameState.categories.find(c => c.id === categoryId);
-                    return category ? (
-                      <Badge 
+                    const categoryMovies = gameState.movies.filter(m => m.categoryId === categoryId);
+                    
+                    if (!category) return null;
+                    
+                    return (
+                      <div 
                         key={categoryId}
                         className={cn(
-                          category.colors.bg,
-                          category.colors.border,
-                          category.colors.text
+                          "p-3 rounded-lg border-2",
+                          category.colors.bg.replace('bg-', 'bg-opacity-20 bg-'),
+                          category.colors.border
                         )}
                       >
-                        {category.name}
-                      </Badge>
-                    ) : null;
+                        <div className="flex items-center justify-center mb-2">
+                          <Badge 
+                            className={cn(
+                              category.colors.bg,
+                              category.colors.text,
+                              "font-medium"
+                            )}
+                          >
+                            {category.name}
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                          {categoryMovies.map((movie) => (
+                            <div key={movie.id} className="text-center">
+                              <div className="text-xs font-medium text-muted-foreground">
+                                {movie.title}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
                   })}
                 </div>
               </div>

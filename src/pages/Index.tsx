@@ -14,14 +14,13 @@ const Index = () => {
       title: 'Cast Guessing',
       description: 'Guess the movie by its cast members',
       icon: '🎭'
+    },
+    {
+      id: 'category-game',
+      title: 'Categories Game', 
+      description: 'Group 16 movies into 4 categories',
+      icon: '�'
     }
-    // Grid game temporarily hidden
-    // {
-    //   id: 'grid-game',
-    //   title: 'Movie Categories', 
-    //   description: 'Group movies into categories',
-    //   icon: '🎬'
-    // }
   ];
 
   return (
