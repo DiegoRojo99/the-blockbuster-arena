@@ -30,21 +30,6 @@ export interface Database {
         Insert: DbGameTypeInsert
         Update: DbGameTypeUpdate
       }
-      cast_games: {
-        Row: DbCastGame
-        Insert: DbCastGameInsert
-        Update: DbCastGameUpdate
-      }
-      cast_game_players: {
-        Row: DbCastGamePlayer
-        Insert: DbCastGamePlayerInsert
-        Update: DbCastGamePlayerUpdate
-      }
-      cast_game_attempts: {
-        Row: DbCastGameAttempt
-        Insert: DbCastGameAttemptInsert
-        Update: DbCastGameAttemptUpdate
-      }
       cast_game_stats: {
         Row: DbCastGameStats
         Insert: DbCastGameStatsInsert
@@ -64,6 +49,37 @@ export interface Database {
         Row: DbUserGameStats
         Insert: DbUserGameStatsInsert
         Update: DbUserGameStatsUpdate
+      }
+      // Categories Game Tables
+      movies: {
+        Row: DbMovie
+        Insert: DbMovieInsert
+        Update: DbMovieUpdate
+      }
+      category_game_templates: {
+        Row: DbCategoryGameTemplate
+        Insert: DbCategoryGameTemplateInsert
+        Update: DbCategoryGameTemplateUpdate
+      }
+      game_categories: {
+        Row: DbGameCategory
+        Insert: DbGameCategoryInsert
+        Update: DbGameCategoryUpdate
+      }
+      template_movies: {
+        Row: DbTemplateMovie
+        Insert: DbTemplateMovieInsert
+        Update: DbTemplateMovieUpdate
+      }
+      category_game_sessions: {
+        Row: DbCategoryGameSession
+        Insert: DbCategoryGameSessionInsert
+        Update: DbCategoryGameSessionUpdate
+      }
+      session_statistics: {
+        Row: DbSessionStatistics
+        Insert: DbSessionStatisticsInsert
+        Update: DbSessionStatisticsUpdate
       }
     }
     Views: {
@@ -176,7 +192,7 @@ export interface DbGameTypeUpdate {
 }
 
 // =============================================
-// 4. CAST GAME TYPES
+// 4. CAST GAME TYPES (Shared Games Only)
 // =============================================
 
 export type CastGameMode = 'popular' | 'top_rated' | 'now_playing' | 'upcoming'
@@ -191,6 +207,10 @@ export interface CastMember {
   profile_path: string | null
   order: number
 }
+
+// NOTE: Individual cast_games table doesn't exist in schema
+// Only shared_cast_games exists. These types are kept for potential future use
+// but are not currently used in the Database interface above.
 
 export interface DbCastGame {
   id: string // UUID
@@ -526,6 +546,7 @@ export interface DbSharedCastGame {
   cast_data: CastMember[]
   mode: CastGameMode
   language: GameLanguage
+  max_cast_reveals: number
   created_by?: string
   creator_username?: string
   share_slug: string
@@ -544,6 +565,7 @@ export interface DbSharedCastGameInsert {
   cast_data: CastMember[]
   mode: CastGameMode
   language: GameLanguage
+  max_cast_reveals?: number
   created_by?: string
   creator_username?: string
   share_slug: string
@@ -562,6 +584,7 @@ export interface DbSharedCastGameUpdate {
   cast_data?: never
   mode?: never
   language?: never
+  max_cast_reveals?: number
   created_by?: never
   creator_username?: string
   share_slug?: never
@@ -630,7 +653,263 @@ export const CAST_STATS_FIELDS: CastStatsUpdateMap = {
 } as const
 
 // =============================================
-// 12. SUPABASE CLIENT TYPE
+// 12. CATEGORIES GAME TYPES
+// =============================================
+
+// Movies table
+export interface DbMovie {
+  id: number
+  tmdb_id?: number
+  title: string
+  original_title?: string
+  release_date?: string
+  year?: number
+  poster_path?: string
+  backdrop_path?: string
+  poster_url?: string
+  overview?: string
+  original_language: string
+  popularity?: number
+  vote_average?: number
+  vote_count?: number
+  runtime?: number
+  adult: boolean
+  genres: Json
+  is_featured: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface DbMovieInsert {
+  id?: never
+  tmdb_id?: number
+  title: string
+  original_title?: string
+  release_date?: string
+  poster_path?: string
+  backdrop_path?: string
+  poster_url?: string
+  overview?: string
+  original_language?: string
+  popularity?: number
+  vote_average?: number
+  vote_count?: number
+  runtime?: number
+  adult?: boolean
+  genres?: Json
+  is_featured?: boolean
+  is_active?: boolean
+}
+
+export interface DbMovieUpdate {
+  id?: never
+  tmdb_id?: number
+  title?: string
+  original_title?: string
+  release_date?: string
+  poster_path?: string
+  backdrop_path?: string
+  poster_url?: string
+  overview?: string
+  original_language?: string
+  popularity?: number
+  vote_average?: number
+  vote_count?: number
+  runtime?: number
+  adult?: boolean
+  genres?: Json
+  is_featured?: boolean
+  is_active?: boolean
+  updated_at?: string
+}
+
+// Category Game Templates table
+export interface DbCategoryGameTemplate {
+  id: string
+  name: string
+  description: string
+  max_mistakes: number
+  show_hints: boolean
+  shuffle_movies: boolean
+  game_difficulty: string
+  tags: Json
+  is_active: boolean
+  created_by?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DbCategoryGameTemplateInsert {
+  id: string
+  name: string
+  description: string
+  max_mistakes?: number
+  show_hints?: boolean
+  shuffle_movies?: boolean
+  game_difficulty?: string
+  tags?: Json
+  is_active?: boolean
+  created_by?: string
+}
+
+export interface DbCategoryGameTemplateUpdate {
+  id?: never
+  name?: string
+  description?: string
+  max_mistakes?: number
+  show_hints?: boolean
+  shuffle_movies?: boolean
+  game_difficulty?: string
+  tags?: Json
+  is_active?: boolean
+  updated_at?: string
+}
+
+// Game Categories table
+export interface DbGameCategory {
+  id: string
+  template_id: string
+  name: string
+  difficulty: string
+  hint?: string
+  display_order: number
+  bg_color: string
+  border_color: string
+  text_color: string
+  created_at: string
+}
+
+export interface DbGameCategoryInsert {
+  id: string
+  template_id: string
+  name: string
+  difficulty: string
+  hint?: string
+  display_order: number
+  bg_color: string
+  border_color: string
+  text_color: string
+}
+
+export interface DbGameCategoryUpdate {
+  id?: never
+  template_id?: never
+  name?: string
+  difficulty?: string
+  hint?: string
+  display_order?: number
+  bg_color?: string
+  border_color?: string
+  text_color?: string
+}
+
+// Template Movies table (junction table)
+export interface DbTemplateMovie {
+  template_id: string
+  movie_id: number
+  category_id: string
+  display_order: number
+  is_active: boolean
+  created_at: string
+}
+
+export interface DbTemplateMovieInsert {
+  template_id: string
+  movie_id: number
+  category_id: string
+  display_order: number
+  is_active?: boolean
+}
+
+export interface DbTemplateMovieUpdate {
+  template_id?: never
+  movie_id?: never
+  category_id?: string
+  display_order?: number
+  is_active?: boolean
+}
+
+// Category Game Sessions table
+export interface DbCategoryGameSession {
+  id: string
+  template_id: string
+  user_id?: string
+  player_name?: string
+  current_state: Json
+  mistakes_count: number
+  hints_used_count: number
+  total_time_seconds: number
+  is_completed: boolean
+  is_won: boolean
+  completed_at?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DbCategoryGameSessionInsert {
+  id?: string
+  template_id: string
+  user_id?: string
+  player_name?: string
+  current_state?: Json
+  mistakes_count?: number
+  hints_used_count?: number
+  total_time_seconds?: number
+  is_completed?: boolean
+  is_won?: boolean
+  completed_at?: string
+}
+
+export interface DbCategoryGameSessionUpdate {
+  id?: never
+  template_id?: never
+  user_id?: never
+  player_name?: string
+  current_state?: Json
+  mistakes_count?: number
+  hints_used_count?: number
+  total_time_seconds?: number
+  is_completed?: boolean
+  is_won?: boolean
+  completed_at?: string
+  updated_at?: string
+}
+
+// Session Statistics table
+export interface DbSessionStatistics {
+  id: string
+  session_id: string
+  category_id: string
+  movies_guessed_correctly: Json
+  movies_guessed_incorrectly: Json
+  time_to_complete_seconds?: number
+  hints_used: number
+  created_at: string
+}
+
+export interface DbSessionStatisticsInsert {
+  id?: string
+  session_id: string
+  category_id: string
+  movies_guessed_correctly?: Json
+  movies_guessed_incorrectly?: Json
+  time_to_complete_seconds?: number
+  hints_used?: number
+}
+
+export interface DbSessionStatisticsUpdate {
+  id?: never
+  session_id?: never
+  category_id?: never
+  movies_guessed_correctly?: Json
+  movies_guessed_incorrectly?: Json
+  time_to_complete_seconds?: number
+  hints_used?: number
+}
+
+// =============================================
+// 13. SUPABASE CLIENT TYPE
 // =============================================
 
 export type SupabaseClient = import('@supabase/supabase-js').SupabaseClient<Database>

@@ -10,7 +10,7 @@ const Layout = ({ children, className = "" }: LayoutProps) => {
   return (
     <>
       <Navigation />
-      <main className={`pt-20 ${className}`}>
+      <main className={`pt-24 ${className}`}>
         {children}
       </main>
     </>
