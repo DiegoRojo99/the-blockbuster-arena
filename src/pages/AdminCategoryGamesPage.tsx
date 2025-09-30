@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import {
 import { TMDBMovie } from "@/types/tmdb";
 import { searchMovies } from "@/services/tmdb";
 import { saveCategoryGameTemplate } from "@/services/categoryGamesService";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface MovieSearchResult extends TMDBMovie {
   selected?: boolean;
@@ -44,6 +46,7 @@ interface GameTemplateForm {
 }
 
 const AdminCategoryGamesPage = () => {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
   const [gameForm, setGameForm] = useState<GameTemplateForm>({
     id: '',
@@ -250,7 +253,7 @@ const AdminCategoryGamesPage = () => {
       };
 
       // Save to database
-      const result = await saveCategoryGameTemplate(template);
+      const result = await saveCategoryGameTemplate(template, user?.id);
       
       if (result.success) {
         toast({
@@ -310,6 +313,29 @@ const AdminCategoryGamesPage = () => {
       description: "Game template preview would open here.",
     });
   };
+
+  // Check if user is authenticated
+  if (!user) {
+    return (
+      <Layout className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="gradient-card shadow-elevated max-w-md w-full">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl bg-gradient-to-r from-cinema-gold to-cinema-purple bg-clip-text text-transparent">
+              Authentication Required
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-muted-foreground">
+              You need to be signed in to access the admin interface.
+            </p>
+            <Button asChild className="gradient-gold text-cinema-dark">
+              <Link to="/auth">Sign In</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </Layout>
+    );
+  }
 
   return (
     <Layout className="min-h-screen bg-background p-4">
