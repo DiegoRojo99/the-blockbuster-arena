@@ -34,11 +34,21 @@ const ModeSelectionPage = () => {
       name: 'Upcoming',
       description: 'Movies coming soon to theaters',
       icon: '🎭'
+    },
+    {
+      id: 'custom',
+      name: 'Custom Movie',
+      description: 'Choose a specific movie to challenge friends',
+      icon: '🎯'
     }
   ];
 
   const handleModeSelect = (modeId: string) => {
-    navigate(`/cast-game?mode=${modeId}`);
+    if (modeId === 'custom') {
+      navigate('/cast-game/custom');
+    } else {
+      navigate(`/cast-game?mode=${modeId}`);
+    }
   };
 
   return (

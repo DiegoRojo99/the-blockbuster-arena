@@ -5,9 +5,10 @@ import { MovieMode, SupportedLanguage, TMDBMovie } from '@/types/tmdb';
 interface UseGameManagerProps {
   mode: MovieMode;
   language: SupportedLanguage;
+  enabled?: boolean;
 }
 
-export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
+export const useGameManager = ({ mode, language, enabled = true }: UseGameManagerProps) => {
   const [gameState, setGameState] = useState<GameState>({
     currentMovie: null,
     score: 0,
@@ -43,6 +44,8 @@ export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
 
   // Initialize game when mode or language changes
   useEffect(() => {
+    if (!enabled) return;
+    
     const initializeGame = async () => {
       if (gameRef.current) {
         // Clean up previous game if needed
@@ -56,7 +59,7 @@ export const useGameManager = ({ mode, language }: UseGameManagerProps) => {
     };
 
     initializeGame();
-  }, [mode, language]);
+  }, [mode, language, enabled]);
 
   // Game action handlers
   const takeGuess = useCallback(async (movie: TMDBMovie): Promise<{ isCorrect: boolean; isGameOver: boolean }> => {

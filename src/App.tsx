@@ -15,6 +15,7 @@ import DatabaseTest from "./pages/DatabaseTest";
 import SharedCastGamePage from "./pages/SharedCastGamePage";
 import CategoriesGamePage from "./pages/CategoriesGamePage";
 import AdminCategoryGamesPage from "./pages/AdminCategoryGamesPage";
+import CustomMoviePage from "./pages/CustomMoviePage";
 
 const queryClient = new QueryClient();
 
@@ -33,7 +34,8 @@ const App = () => (
           <Route path="/test" element={<DatabaseTest />} />
           <Route path="/cast-game-modes" element={<ModeSelectionPage />} />
           <Route path="/cast-game/shared/:shareSlug" element={<SharedCastGamePage />} />
-          <Route path="/cast-game/:gameSlug" element={<CastGamePage />} />
+          <Route path="/cast-game/custom/:movieId" element={<CastGamePage />} />
+          <Route path="/cast-game/custom" element={<CustomMoviePage />} />
           <Route path="/cast-game" element={<CastGamePage />} />
           <Route path="/category-game" element={<CategoriesGamePage />} />
           <Route path="/admin/category" element={<AdminCategoryGamesPage />} />
