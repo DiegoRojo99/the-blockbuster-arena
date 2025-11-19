@@ -155,8 +155,10 @@ export const CastGame = ({
   };
 
   const handleRevealNext = () => {
-    // Manual reveal is disabled - cast is now revealed automatically after wrong guesses
-    return;
+    if (disabled || gameOver || revealedCast >= maxReveals) return;
+    
+    // Allow manual reveal - user can reveal additional cast members
+    setRevealedCast(prev => Math.min(prev + 1, maxReveals));
   };
 
   const handleGiveUp = () => {
