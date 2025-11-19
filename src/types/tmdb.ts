@@ -127,7 +127,7 @@ export interface LanguageOption {
 }
 
 // Game Mode types
-export type MovieMode = 'popular' | 'top_rated' | 'now_playing' | 'upcoming';
+export type MovieMode = 'popular' | 'top_rated' | 'now_playing' | 'upcoming' | 'custom';
 
 export interface MovieModeOption {
   id: MovieMode;

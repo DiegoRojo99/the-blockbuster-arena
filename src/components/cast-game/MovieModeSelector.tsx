@@ -37,6 +37,12 @@ const movieModeOptions: MovieModeOption[] = [
     name: 'Upcoming',
     description: 'New and soon-to-be-released films',
     icon: '🗓️'
+  },
+  {
+    id: 'custom',
+    name: 'Custom Movie',
+    description: 'Choose a specific movie to challenge friends',
+    icon: '🎯'
   }
 ];
 
