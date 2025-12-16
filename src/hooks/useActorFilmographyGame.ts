@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActorFilmographyEntry, SupportedLanguage, TMDBMovie, TMDBPerson } from '@/types/tmdb';
 import { buildActorFilmography, getActorMovieCredits } from '@/services/tmdb';
 
-const ROUND_SECONDS = 600; // 10 minutes
+const DEFAULT_ROUND_SECONDS = 600; // 10 minutes
 const MAX_HINT_STEPS = 4;
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -19,21 +19,28 @@ export interface GuessResult {
   entry?: ActorFilmographyEntry;
 }
 
-export const useActorFilmographyGame = (language: SupportedLanguage) => {
+interface UseActorFilmographyGameProps {
+  language: SupportedLanguage;
+  timeLimit?: number; // in seconds, undefined for no limit
+}
+
+export const useActorFilmographyGame = ({ language, timeLimit }: UseActorFilmographyGameProps) => {
   const [actor, setActor] = useState<TMDBPerson | null>(null);
   const [filmography, setFilmography] = useState<ActorFilmographyEntry[]>([]);
   const [guessedIds, setGuessedIds] = useState<Set<number>>(new Set());
   const [wrongGuesses, setWrongGuesses] = useState<TMDBMovie[]>([]);
   const [hintSteps, setHintSteps] = useState<Record<number, number>>({});
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(ROUND_SECONDS);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(timeLimit ?? DEFAULT_ROUND_SECONDS);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const hasTimeLimit = timeLimit !== undefined && timeLimit > 0;
+
   // Timer handling
   useEffect(() => {
-    if (!isTimerRunning) return;
+    if (!isTimerRunning || !hasTimeLimit) return;
 
     const interval = setInterval(() => {
       setRemainingSeconds((prev) => {
@@ -48,7 +55,7 @@ export const useActorFilmographyGame = (language: SupportedLanguage) => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isTimerRunning]);
+  }, [isTimerRunning, hasTimeLimit]);
 
   // Stop timer when all movies are guessed
   useEffect(() => {
@@ -93,7 +100,7 @@ export const useActorFilmographyGame = (language: SupportedLanguage) => {
         setGuessedIds(new Set());
         setWrongGuesses([]);
         setHintSteps({});
-        setRemainingSeconds(ROUND_SECONDS);
+        setRemainingSeconds(timeLimit ?? DEFAULT_ROUND_SECONDS);
         setIsTimeUp(false);
         setIsTimerRunning(entries.length > 0);
 
@@ -110,7 +117,7 @@ export const useActorFilmographyGame = (language: SupportedLanguage) => {
         setIsLoading(false);
       }
     },
-    [language]
+    [language, timeLimit]
   );
 
   const guessMovie = useCallback(
@@ -160,11 +167,11 @@ export const useActorFilmographyGame = (language: SupportedLanguage) => {
     setGuessedIds(new Set());
     setWrongGuesses([]);
     setHintSteps({});
-    setRemainingSeconds(ROUND_SECONDS);
+    setRemainingSeconds(timeLimit ?? DEFAULT_ROUND_SECONDS);
     setIsTimerRunning(false);
     setIsTimeUp(false);
     setError(null);
-  }, []);
+  }, [timeLimit]);
 
   const progress = useMemo(
     () => ({
@@ -186,6 +193,7 @@ export const useActorFilmographyGame = (language: SupportedLanguage) => {
     isLoading,
     error,
     progress,
+    hasTimeLimit,
     actions: {
       selectActor,
       guessMovie,
