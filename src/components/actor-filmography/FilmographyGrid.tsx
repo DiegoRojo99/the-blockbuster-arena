@@ -2,6 +2,7 @@ import { ActorFilmographyEntry } from '@/types/tmdb';
 import { getImageUrl } from '@/services/tmdb';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface FilmographyGridProps {
@@ -12,14 +13,13 @@ interface FilmographyGridProps {
   onRevealHint: (movieId: number) => void;
 }
 
-const buildInitials = (title: string) =>
-  title
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => word[0]?.toUpperCase() || '')
-    .join('');
-
-const hintLabels = ['Tap for hint', 'Year', 'Genre', 'Initials', 'Poster'];
+const hintLevels = [
+  { level: 0, label: 'Locked', icon: '🔒' },
+  { level: 1, label: 'Year', icon: '📅' },
+  { level: 2, label: 'Genre', icon: '🎞️' },
+  { level: 3, label: 'Character', icon: '🎭' },
+  { level: 4, label: 'Poster', icon: '🖼️' },
+];
 
 export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRevealHint }: FilmographyGridProps) => {
   if (!entries.length) {
@@ -33,73 +33,77 @@ export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRe
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="grid gap-4 grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
       {entries.map((entry) => {
         const hintLevel = hintSteps[entry.id] ?? 0;
         const guessed = guessedIds.has(entry.id);
         const posterUrl = entry.posterPath ? getImageUrl(entry.posterPath, 'w342') : null;
         const canReveal = !guessed && !isTimeUp;
-        const initials = buildInitials(entry.title);
 
         return (
           <Card
             key={entry.id}
-            className={cn('overflow-hidden shadow-card border-border/60', guessed && 'border-green-500')}
+            className={cn(
+              'overflow-hidden shadow-card border-2 transition-all',
+              guessed ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-border/60'
+            )}
           >
-            <CardContent className="p-0">
-              <button
-                type="button"
-                onClick={() => canReveal && onRevealHint(entry.id)}
-                className="relative w-full h-56 text-left"
-                disabled={!canReveal}
-              >
-                {posterUrl ? (
-                  <div
-                    className="absolute inset-0 transition-all duration-500"
-                    style={{
-                      backgroundImage: `url(${posterUrl})`,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      filter: hintLevel >= 4 ? 'grayscale(0.1)' : 'grayscale(1) brightness(0.4)',
-                      opacity: hintLevel >= 4 ? 0.95 : 0.7,
-                    }}
+            <CardContent className="p-3 space-y-3 h-full flex flex-col">
+              {/* Silhouette Rectangle */}
+              <div className="relative flex-1 min-h-32 rounded-lg overflow-hidden bg-gradient-to-br from-slate-700 to-slate-900">
+                {hintLevel >= 4 && posterUrl ? (
+                  <img
+                    src={posterUrl}
+                    alt={entry.title}
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-700" />
+                  <div className="w-full h-full" />
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-
-                <div className="relative h-full w-full p-4 flex flex-col justify-between text-white">
-                  <div className="flex items-center justify-between text-xs uppercase tracking-wide">
-                    <span className="rounded-full bg-white/10 px-3 py-1">
-                      {guessed ? 'Guessed' : hintLabels[hintLevel]}
-                    </span>
-                    <Badge variant="secondary" className="text-[10px] uppercase bg-white/20 text-white border-white/40">
-                      Hint {hintLevel}/4
-                    </Badge>
+                {guessed && (
+                  <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center">
+                    <div className="text-3xl">✓</div>
                   </div>
+                )}
+              </div>
 
-                  <div className="space-y-2">
-                    {guessed ? (
-                      <div>
-                        <div className="text-lg font-semibold leading-tight">{entry.title}</div>
-                        <div className="text-sm text-white/80">{entry.year}</div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1 text-sm">
-                        {hintLevel >= 1 && <div>📅 {entry.year}</div>}
-                        {hintLevel >= 2 && entry.genre && <div>🎞️ {entry.genre}</div>}
-                        {hintLevel >= 3 && <div>🔤 Initials: {initials}</div>}
-                        {hintLevel === 0 && <div className="text-white/70">Click the silhouette to reveal hints.</div>}
-                      </div>
+              {/* Hint Buttons */}
+              <div className="flex gap-1 flex-wrap">
+                {hintLevels.map(({ level, label }) => (
+                  <Button
+                    key={level}
+                    size="sm"
+                    variant={hintLevel >= level ? 'default' : 'ghost'}
+                    onClick={() => canReveal && level > hintLevel && onRevealHint(entry.id)}
+                    disabled={!canReveal || guessed || level === 0}
+                    className={cn(
+                      'text-xs h-8 px-2',
+                      hintLevel >= level && 'bg-cinema-gold text-cinema-dark',
+                      guessed && 'opacity-50'
                     )}
+                    title={label}
+                  >
+                    {level === 0 ? '🔒' : hintLevels[level]?.icon || '?'}
+                  </Button>
+                ))}
+              </div>
 
-                    {entry.character && (
-                      <div className="text-xs text-white/70">as {entry.character}</div>
-                    )}
+              {/* Info Display */}
+              <div className="space-y-1 text-xs">
+                {guessed ? (
+                  <div>
+                    <div className="font-semibold text-green-700 dark:text-green-300">{entry.title}</div>
+                    <div className="text-green-600 dark:text-green-400">{entry.year}</div>
                   </div>
-                </div>
-              </button>
+                ) : (
+                  <div className="space-y-1">
+                    {hintLevel >= 1 && <div><strong>Year:</strong> {entry.year}</div>}
+                    {hintLevel >= 2 && entry.genre && <div><strong>Genre:</strong> {entry.genre}</div>}
+                    {hintLevel >= 3 && entry.character && <div><strong>As:</strong> {entry.character}</div>}
+                    {hintLevel === 0 && <div className="text-muted-foreground italic">Locked - click hints to reveal</div>}
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         );
