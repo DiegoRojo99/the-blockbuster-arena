@@ -11,7 +11,7 @@ interface FilmographyGridProps {
   onRevealHint: (movieId: number) => void;
 }
 
-const hintLabels = ['Locked', 'Year', 'Genre', 'Character', 'Poster'];
+const hintLabels = ['Locked', 'Year', 'Genre', 'Character', 'Co-star', 'Director', 'Tagline', 'Poster'];
 
 export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRevealHint }: FilmographyGridProps) => {
   if (!entries.length) {
@@ -30,7 +30,7 @@ export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRe
         const hintLevel = hintSteps[entry.id] ?? 0;
         const guessed = guessedIds.has(entry.id);
         const posterUrl = entry.posterPath ? getImageUrl(entry.posterPath, 'w342') : null;
-        const canReveal = !guessed && !isTimeUp && hintLevel < 4;
+        const canReveal = !guessed && !isTimeUp && hintLevel < 7;
 
         return (
           <Card
@@ -45,18 +45,18 @@ export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRe
               <button
                 type="button"
                 onClick={() => canReveal && onRevealHint(entry.id)}
-                disabled={guessed || isTimeUp || hintLevel >= 4}
+                disabled={guessed || isTimeUp || hintLevel >= 7}
                 className={cn(
                   'relative flex-1 min-h-32 rounded-lg overflow-hidden transition-all',
-                  guessed || isTimeUp || hintLevel >= 4 ? 'cursor-default' : 'cursor-pointer hover:opacity-80',
-                  !guessed && !isTimeUp && hintLevel < 4 ? 'bg-gradient-to-br from-slate-700 to-slate-900' : 'bg-gradient-to-br from-slate-600 to-slate-800'
+                  guessed || isTimeUp || hintLevel >= 7 ? 'cursor-default' : 'cursor-pointer hover:opacity-80',
+                  !guessed && !isTimeUp && hintLevel < 7 ? 'bg-gradient-to-br from-slate-700 to-slate-900' : 'bg-gradient-to-br from-slate-600 to-slate-800'
                 )}
               >
-                {(guessed || hintLevel >= 4) && posterUrl ? (
+                {(guessed || hintLevel >= 7) && posterUrl ? (
                   <img
                     src={posterUrl}
                     alt={entry.title}
-                    className="w-full h-full object-cover"
+                    className={cn("w-full h-full object-cover", !guessed && hintLevel >= 7 ? "blur-md" : "")}
                   />
                 ) : (
                   <div className="w-full h-full" />
@@ -66,7 +66,7 @@ export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRe
                     <div className="text-3xl font-bold">✓</div>
                   </div>
                 )}
-                {!guessed && hintLevel < 4 && (
+                {!guessed && hintLevel < 7 && (
                   <div className="absolute inset-0 flex items-center justify-center text-white/50 text-sm font-medium">
                     {hintLabels[hintLevel]}
                   </div>
@@ -85,6 +85,11 @@ export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRe
                     {hintLevel >= 1 && <div><strong>Year:</strong> {entry.year}</div>}
                     {hintLevel >= 2 && entry.genre && <div><strong>Genre:</strong> {entry.genre}</div>}
                     {hintLevel >= 3 && entry.character && <div><strong>As:</strong> {entry.character}</div>}
+                    {hintLevel >= 4 && entry.coStars && entry.coStars.length > 0 && (
+                      <div><strong>Co-star:</strong> {entry.coStars.slice(0, 2).join(', ')}</div>
+                    )}
+                    {hintLevel >= 5 && entry.director && <div><strong>Director:</strong> {entry.director}</div>}
+                    {hintLevel >= 6 && entry.tagline && <div className="italic text-muted-foreground">“{entry.tagline}”</div>}
                     {hintLevel === 0 && <div className="text-muted-foreground italic text-center">Click to reveal</div>}
                   </div>
                 )}

@@ -1,4 +1,4 @@
-import {
+import { 
   TMDBMovie,
   TMDBMovieDetails,
   TMDBMovieCredits,
@@ -80,6 +80,11 @@ async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {
   return response.json();
 }
 
+// Simple in-memory caches to minimize network calls
+const creditsCache = new Map<string, Promise<TMDBMovieCredits>>();
+const detailsCache = new Map<string, Promise<TMDBMovieDetails>>();
+const enrichCache = new Map<string, Promise<ActorFilmographyEntry>>();
+
 /**
  * Search for actors by name
  */
@@ -133,7 +138,8 @@ export function buildActorFilmography(
       if (seen.has(key)) return acc;
       seen.add(key);
 
-      acc.push({
+      // Build base entry
+      const baseEntry: ActorFilmographyEntry = {
         id: credit.id,
         title: credit.title,
         originalTitle: credit.original_title,
@@ -143,11 +149,117 @@ export function buildActorFilmography(
         altTitles: Array.from(new Set([credit.title, credit.original_title].filter(Boolean))),
         character: credit.character,
         popularity: credit.popularity || 0,
-      });
+        director: null,
+        coStars: [],
+        tagline: null,
+      };
+
+      acc.push(baseEntry);
 
       return acc;
     }, [])
     .sort((a, b) => b.popularity - a.popularity);
+}
+
+/**
+ * Enrich filmography entries with director, co-stars, and tagline
+ */
+export async function enrichFilmographyEntries(
+  entries: ActorFilmographyEntry[],
+  language: SupportedLanguage = 'en'
+): Promise<ActorFilmographyEntry[]> {
+  const enriched = await Promise.all(
+    entries.map(async (entry) => {
+      try {
+        const [credits, details] = await Promise.all([
+          getMovieCredits(entry.id, language),
+          getMovieDetails(entry.id, language),
+        ]);
+
+        const director = credits.crew.find((c) => c.job === 'Director')?.name ?? null;
+
+        const coStars = credits.cast
+          .sort((a, b) => a.order - b.order)
+          .slice(0, 5)
+          .map((c) => c.name)
+          .filter(Boolean);
+
+        // Sanitize tagline to avoid echoing title
+        const taglineRaw = details.tagline || null;
+        const titleLower = (entry.title || '').toLowerCase();
+        const sanitizedTagline = taglineRaw
+          ? taglineRaw.replace(new RegExp(entry.title, 'i'), '').trim() || taglineRaw
+          : null;
+
+        return {
+          ...entry,
+          director,
+          coStars,
+          tagline: sanitizedTagline,
+        };
+      } catch (e) {
+        // If enrichment fails, return the original entry
+        return entry;
+      }
+    })
+  );
+
+  return enriched;
+}
+
+/**
+ * Enrich a single filmography entry (lazy) with director, co-stars, and tagline
+ */
+export async function enrichEntry(
+  entry: ActorFilmographyEntry,
+  language: SupportedLanguage = 'en',
+  excludeId?: number,
+  excludeName?: string
+): Promise<ActorFilmographyEntry> {
+  const key = `${entry.id}:${language}:enrich`;
+  if (enrichCache.has(key)) {
+    return enrichCache.get(key)!;
+  }
+
+  const promise = (async () => {
+    try {
+      const [credits, details] = await Promise.all([
+        getMovieCredits(entry.id, language),
+        getMovieDetails(entry.id, language),
+      ]);
+
+      const director = credits.crew.find((c) => c.job === 'Director')?.name ?? null;
+
+      const excludeNameNorm = (excludeName || '').toLowerCase().trim();
+      const coStars = credits.cast
+        .filter((c) => (excludeId ? c.id !== excludeId : true))
+        .sort((a, b) => a.order - b.order)
+        .map((c) => c.name)
+        .filter((n): n is string => !!n)
+        .filter((name) => {
+          const norm = name.toLowerCase().trim();
+          return excludeNameNorm ? norm !== excludeNameNorm : true;
+        })
+        .slice(0, 2);
+
+      const taglineRaw = details.tagline || null;
+      const sanitizedTagline = taglineRaw
+        ? taglineRaw.replace(new RegExp(entry.title, 'i'), '').trim() || taglineRaw
+        : null;
+
+      return {
+        ...entry,
+        director: director ?? entry.director ?? null,
+        coStars: (coStars && coStars.length ? coStars : entry.coStars) ?? [],
+        tagline: sanitizedTagline ?? entry.tagline ?? null,
+      };
+    } catch {
+      return entry;
+    }
+  })();
+
+  enrichCache.set(key, promise);
+  return promise;
 }
 
 /**
@@ -181,7 +293,11 @@ export async function getMovieDetails(
   movieId: number,
   language: SupportedLanguage = 'en'
 ): Promise<TMDBMovieDetails> {
-  return tmdbFetch<TMDBMovieDetails>(`/movie/${movieId}`, { language });
+  const key = `${movieId}:${language}`;
+  if (!detailsCache.has(key)) {
+    detailsCache.set(key, tmdbFetch<TMDBMovieDetails>(`/movie/${movieId}`, { language }));
+  }
+  return detailsCache.get(key)!;
 }
 
 /**
@@ -191,7 +307,11 @@ export async function getMovieCredits(
   movieId: number,
   language: SupportedLanguage = 'en'
 ): Promise<TMDBMovieCredits> {
-  return tmdbFetch<TMDBMovieCredits>(`/movie/${movieId}/credits`, { language });
+  const key = `${movieId}:${language}`;
+  if (!creditsCache.has(key)) {
+    creditsCache.set(key, tmdbFetch<TMDBMovieCredits>(`/movie/${movieId}/credits`, { language }));
+  }
+  return creditsCache.get(key)!;
 }
 
 /**

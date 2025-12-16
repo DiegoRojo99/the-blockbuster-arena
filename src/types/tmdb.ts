@@ -56,6 +56,9 @@ export interface ActorFilmographyEntry {
   altTitles: string[];
   character?: string;
   popularity: number;
+  director?: string | null;
+  coStars?: string[];
+  tagline?: string | null;
 }
 
 export interface TMDBCastMember {

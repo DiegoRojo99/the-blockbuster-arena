@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActorFilmographyEntry, SupportedLanguage, TMDBMovie, TMDBPerson } from '@/types/tmdb';
-import { buildActorFilmography, getActorMovieCredits } from '@/services/tmdb';
+import { buildActorFilmography, getActorMovieCredits, enrichFilmographyEntries, enrichEntry } from '@/services/tmdb';
 
 const DEFAULT_ROUND_SECONDS = 600; // 10 minutes
-const MAX_HINT_STEPS = 4;
+const MAX_HINT_STEPS = 7;
 
 const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 const getMovieYear = (movie: TMDBMovie) => {
@@ -95,7 +95,8 @@ export const useActorFilmographyGame = ({ language, timeLimit }: UseActorFilmogr
 
       try {
         const credits = await getActorMovieCredits(person.id, language);
-        const entries = buildActorFilmography(credits);
+        const baseEntries = buildActorFilmography(credits);
+        const entries = await enrichFilmographyEntries(baseEntries, language);
         setFilmography(entries);
         setGuessedIds(new Set());
         setWrongGuesses([]);
@@ -156,9 +157,38 @@ export const useActorFilmographyGame = ({ language, timeLimit }: UseActorFilmogr
         return { ...prev, [movieId]: nextValue };
       });
 
+      // Lazy enrichment when reaching certain hint levels
+      // Level 4: Co-stars, Level 5: Director, Level 6: Tagline
+      if (nextValue >= 4 && nextValue <= 6) {
+        setFilmography((prev) => {
+          const idx = prev.findIndex((e) => e.id === movieId);
+          if (idx === -1) return prev;
+          const entry = prev[idx];
+          // If already enriched for these fields, skip
+          const needsCoStars = nextValue >= 4 && (!entry.coStars || entry.coStars.length === 0);
+          const needsDirector = nextValue >= 5 && !entry.director;
+          const needsTagline = nextValue >= 6 && !entry.tagline;
+          if (!needsCoStars && !needsDirector && !needsTagline) return prev;
+
+          // Fire and forget enrichment; update when resolved
+          (async () => {
+            const enriched = await enrichEntry(entry, language, actor?.id ?? undefined, actor?.name ?? undefined);
+            setFilmography((curr) => {
+              const i = curr.findIndex((e) => e.id === movieId);
+              if (i === -1) return curr;
+              const next = curr.slice();
+              next[i] = enriched;
+              return next;
+            });
+          })();
+
+          return prev;
+        });
+      }
+
       return nextValue;
     },
-    [isTimeUp]
+    [isTimeUp, language, actor]
   );
 
   const resetGame = useCallback(() => {
