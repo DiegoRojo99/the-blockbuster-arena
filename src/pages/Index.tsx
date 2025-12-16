@@ -15,8 +15,12 @@ const Index = () => {
       description: 'Guess the movie by its cast members',
       icon: '🎭'
     },
-    {
-      id: 'category-game',
+    {      id: 'actor-filmography',
+      title: 'Actor Filmography',
+      description: 'Name all theatrical films from an actor',
+      icon: '🎬'
+    },
+    {      id: 'category-game',
       title: 'Categories Game', 
       description: 'Group 16 movies into 4 categories',
       icon: '�'

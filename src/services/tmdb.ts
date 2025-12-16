@@ -7,12 +7,40 @@ import {
   GameMovie,
   GameCastMember,
   SupportedLanguage,
-  MovieMode
+  MovieMode,
+  TMDBPerson,
+  TMDBPersonSearchResponse,
+  TMDBPersonMovieCreditsResponse,
+  ActorFilmographyEntry
 } from '@/types/tmdb';
 
 const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const BASE_URL = import.meta.env.VITE_TMDB_BASE_URL;
 const IMAGE_BASE_URL = import.meta.env.VITE_TMDB_IMAGE_BASE_URL;
+
+const GENRE_MAP: Record<number, string> = {
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Science Fiction',
+  10770: 'TV Movie',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western'
+};
+
+const normalizeTitle = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 class TMDBApiError extends Error {
   constructor(message: string, public statusCode: number) {
@@ -50,6 +78,76 @@ async function tmdbFetch<T>(endpoint: string, params: Record<string, string> = {
   }
   
   return response.json();
+}
+
+/**
+ * Search for actors by name
+ */
+export async function searchActors(
+  query: string,
+  language: SupportedLanguage = 'en',
+  page: number = 1
+): Promise<TMDBPersonSearchResponse> {
+  return tmdbFetch<TMDBPersonSearchResponse>('/search/person', {
+    query: encodeURIComponent(query),
+    language,
+    page: page.toString(),
+    include_adult: 'false'
+  });
+}
+
+/**
+ * Get movie credits for a person (acting roles)
+ */
+export async function getActorMovieCredits(
+  personId: number,
+  language: SupportedLanguage = 'en'
+): Promise<TMDBPersonMovieCreditsResponse> {
+  return tmdbFetch<TMDBPersonMovieCreditsResponse>(`/person/${personId}/movie_credits`, {
+    language,
+    include_adult: 'false'
+  });
+}
+
+/**
+ * Normalize and filter actor filmography for gameplay
+ */
+export function buildActorFilmography(
+  credits: TMDBPersonMovieCreditsResponse
+): ActorFilmographyEntry[] {
+  const today = new Date();
+  const seen = new Set<string>();
+
+  return credits.cast
+    .filter((credit) => {
+      if (!credit.release_date) return false;
+      const releaseDate = new Date(credit.release_date);
+      if (Number.isNaN(releaseDate.getTime())) return false;
+      return releaseDate <= today;
+    })
+    .reduce<ActorFilmographyEntry[]>((acc, credit) => {
+      const year = parseInt(credit.release_date.split('-')[0], 10);
+      if (Number.isNaN(year)) return acc;
+
+      const key = `${normalizeTitle(credit.title)}-${year}`;
+      if (seen.has(key)) return acc;
+      seen.add(key);
+
+      acc.push({
+        id: credit.id,
+        title: credit.title,
+        originalTitle: credit.original_title,
+        year,
+        posterPath: credit.poster_path,
+        genre: credit.genre_ids?.length ? GENRE_MAP[credit.genre_ids[0]] ?? null : null,
+        altTitles: Array.from(new Set([credit.title, credit.original_title].filter(Boolean))),
+        character: credit.character,
+        popularity: credit.popularity || 0,
+      });
+
+      return acc;
+    }, [])
+    .sort((a, b) => b.popularity - a.popularity);
 }
 
 /**
