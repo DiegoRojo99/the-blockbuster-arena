@@ -142,11 +142,12 @@ export function buildActorFilmography(
         genre: credit.genre_ids?.length ? GENRE_MAP[credit.genre_ids[0]] ?? null : null,
         altTitles: Array.from(new Set([credit.title, credit.original_title].filter(Boolean))),
         character: credit.character,
+        popularity: credit.popularity || 0,
       });
 
       return acc;
     }, [])
-    .sort((a, b) => a.year - b.year);
+    .sort((a, b) => b.popularity - a.popularity);
 }
 
 /**

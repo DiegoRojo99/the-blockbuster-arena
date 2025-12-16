@@ -55,6 +55,7 @@ export interface ActorFilmographyEntry {
   genre: string | null;
   altTitles: string[];
   character?: string;
+  popularity: number;
 }
 
 export interface TMDBCastMember {
