@@ -454,8 +454,81 @@ const sampleGame5: CategoryGameTemplate = {
   ]
 };
 
+const modernSciFiGame: CategoryGameTemplate = {
+  id: "modern-sci-fi",
+  name: "Modern Sci-Fi Themes",
+  description: "Match recent sci-fi movies by their core theme",
+  tags: ["sci-fi", "modern", "themes"],
+  config: {
+    ...configDefaults,
+    gameDifficulty: "advanced"
+  },
+  categories: [
+    { id: "ai-androids", name: "AI & Androids", difficulty: "medium", colors: DIFFICULTY_COLORS.medium, hint: "Synthetic minds at the center" },
+    { id: "space-survival", name: "Space Survival", difficulty: "hard", colors: DIFFICULTY_COLORS.hard, hint: "Staying alive beyond Earth" },
+    { id: "time-loops", name: "Time Loops", difficulty: "medium", colors: DIFFICULTY_COLORS.medium, hint: "Reliving days and timelines" },
+    { id: "first-contact", name: "First Contact", difficulty: "hard", colors: DIFFICULTY_COLORS.hard, hint: "Meeting extraterrestrial life" }
+  ],
+  movies: [
+    { id: "ex-machina-ai", title: "Ex Machina", categoryId: "ai-androids" },
+    { id: "blade-runner-2049", title: "Blade Runner 2049", categoryId: "ai-androids" },
+    { id: "after-yang", title: "After Yang", categoryId: "ai-androids" },
+    { id: "i-robot-modern", title: "I, Robot", categoryId: "ai-androids" },
+
+    { id: "the-martian", title: "The Martian", categoryId: "space-survival" },
+    { id: "gravity-space", title: "Gravity", categoryId: "space-survival" },
+    { id: "life-2017", title: "Life", categoryId: "space-survival" },
+    { id: "moon-2009", title: "Moon", categoryId: "space-survival" },
+
+    { id: "edge-of-tomorrow", title: "Edge of Tomorrow", categoryId: "time-loops" },
+    { id: "palm-springs", title: "Palm Springs", categoryId: "time-loops" },
+    { id: "source-code", title: "Source Code", categoryId: "time-loops" },
+    { id: "predestination", title: "Predestination", categoryId: "time-loops" },
+
+    { id: "arrival-first-contact", title: "Arrival", categoryId: "first-contact" },
+    { id: "contact-1997", title: "Contact", categoryId: "first-contact" },
+    { id: "annihilation", title: "Annihilation", categoryId: "first-contact" },
+    { id: "close-encounters", title: "Close Encounters of the Third Kind", categoryId: "first-contact" }
+  ]
+};
+
+const feelGoodGame: CategoryGameTemplate = {
+  id: "feel-good-night",
+  name: "Feel-Good Movie Night",
+  description: "Group uplifting favorites by their vibe",
+  tags: ["feel-good", "comedy", "music"],
+  config: configDefaults,
+  categories: [
+    { id: "sports-comeback", name: "Sports Comebacks", difficulty: "medium", colors: DIFFICULTY_COLORS.medium, hint: "Underdogs fighting back" },
+    { id: "road-trip-comedy", name: "Road Trip Comedies", difficulty: "easy", colors: DIFFICULTY_COLORS.easy, hint: "Chaos on the highway" },
+    { id: "high-school-misfits", name: "High School Misfits", difficulty: "medium", colors: DIFFICULTY_COLORS.medium, hint: "Finding your crew" },
+    { id: "music-party", name: "Musical Party", difficulty: "hard", colors: DIFFICULTY_COLORS.hard, hint: "Sing-alongs and stage lights" }
+  ],
+  movies: [
+    { id: "rocky-comeback", title: "Rocky", categoryId: "sports-comeback" },
+    { id: "remember-the-titans", title: "Remember the Titans", categoryId: "sports-comeback" },
+    { id: "coach-carter", title: "Coach Carter", categoryId: "sports-comeback" },
+    { id: "miracle", title: "Miracle", categoryId: "sports-comeback" },
+
+    { id: "little-miss-sunshine", title: "Little Miss Sunshine", categoryId: "road-trip-comedy" },
+    { id: "planes-trains", title: "Planes, Trains and Automobiles", categoryId: "road-trip-comedy" },
+    { id: "dumb-and-dumber", title: "Dumb and Dumber", categoryId: "road-trip-comedy" },
+    { id: "we-re-the-millers", title: "We're the Millers", categoryId: "road-trip-comedy" },
+
+    { id: "napoleon-dynamite", title: "Napoleon Dynamite", categoryId: "high-school-misfits" },
+    { id: "superbad", title: "Superbad", categoryId: "high-school-misfits" },
+    { id: "easy-a", title: "Easy A", categoryId: "high-school-misfits" },
+    { id: "10-things", title: "10 Things I Hate About You", categoryId: "high-school-misfits" },
+
+    { id: "school-of-rock", title: "School of Rock", categoryId: "music-party" },
+    { id: "pitch-perfect", title: "Pitch Perfect", categoryId: "music-party" },
+    { id: "hairspray", title: "Hairspray", categoryId: "music-party" },
+    { id: "mamma-mia-feelgood", title: "Mamma Mia!", categoryId: "music-party" }
+  ]
+};
+
 const sampleCategoryGames: CategoryGameTemplate[] = [
-  sampleGame1, sampleGame5
+  sampleGame1, sampleGame5, modernSciFiGame, feelGoodGame
 ];
 
 // Export all games as a collection
