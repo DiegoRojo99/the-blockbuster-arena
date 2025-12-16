@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { CategoryGameTemplate, GameCategory, GameMovie } from "@/types/categories-game";
+import { CategoryGameTemplate, GameCategory, GameMovie, DIFFICULTY_COLORS } from "@/types/categories-game";
 
 // Create a raw supabase client for this service to avoid type issues
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -119,17 +119,110 @@ export async function saveCategoryGameTemplate(
  */
 export async function getCategoryGameTemplates(): Promise<CategoryGameTemplate[]> {
   try {
-    // For now, just get the basic templates - we'll need to build the views later
-    const { data, error } = await rawSupabase
+    // 1) Fetch templates
+    const { data: templates, error: templatesError } = await rawSupabase
       .from('category_game_templates')
       .select('*')
       .eq('is_active', true);
 
-    if (error) throw error;
+    if (templatesError) throw templatesError;
+    if (!templates || templates.length === 0) return [];
 
-    // Return empty array for now since we need to build proper queries
-    // This is a placeholder until we create the proper database views/joins
-    return [];
+    const templateIds = templates.map(t => t.id);
+
+    // 2) Fetch categories for these templates
+    const { data: categories, error: categoriesError } = await rawSupabase
+      .from('game_categories')
+      .select('*')
+      .in('template_id', templateIds);
+
+    if (categoriesError) throw categoriesError;
+
+    // 3) Fetch template movies with joined movie data
+    const { data: templateMovies, error: templateMoviesError } = await rawSupabase
+      .from('template_movies')
+      .select(`id, template_id, category_id, display_order, is_active, movies:movie_id (id, title, tmdb_id, year, poster_url, poster_path)`)
+      .in('template_id', templateIds)
+      .eq('is_active', true);
+
+    if (templateMoviesError) throw templateMoviesError;
+
+    // Build a quick lookup for display_order by template/movie
+    const displayOrderMap: Record<string, number> = {};
+    templateMovies?.forEach(tm => {
+      const movieId = (tm as any)?.movies?.id;
+      if (movieId) {
+        displayOrderMap[`${tm.template_id}:${movieId}`] = tm.display_order ?? 0;
+      }
+    });
+
+    // Helper: build map of categories per template
+    const categoriesByTemplate: Record<string, GameCategory[]> = {};
+    categories?.forEach(cat => {
+      const templateId = cat.template_id as string;
+      const mapped: GameCategory = {
+        id: cat.id,
+        name: cat.name,
+        difficulty: cat.difficulty,
+        colors: {
+          bg: cat.bg_color || DIFFICULTY_COLORS[cat.difficulty]?.bg,
+          border: cat.border_color || DIFFICULTY_COLORS[cat.difficulty]?.border,
+          text: cat.text_color || DIFFICULTY_COLORS[cat.difficulty]?.text
+        },
+        hint: cat.hint || undefined
+      };
+
+      if (!categoriesByTemplate[templateId]) categoriesByTemplate[templateId] = [];
+      categoriesByTemplate[templateId].push(mapped);
+    });
+
+    // Helper: build movies per template
+    const moviesByTemplate: Record<string, GameMovie[]> = {};
+    templateMovies?.forEach(tm => {
+      const tplId = tm.template_id as string;
+      const movie = tm.movies as any;
+      const poster = movie?.poster_url || (movie?.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : undefined);
+
+      const mapped: GameMovie = {
+        id: movie?.tmdb_id ? `tmdb-${movie.tmdb_id}` : `movie-${movie?.id}`,
+        title: movie?.title || 'Untitled',
+        categoryId: tm.category_id,
+        poster,
+        metadata: movie?.year ? { year: movie.year } : undefined
+      };
+
+      if (!moviesByTemplate[tplId]) moviesByTemplate[tplId] = [];
+      moviesByTemplate[tplId].push(mapped);
+    });
+
+    // 4) Assemble templates
+    const assembled: CategoryGameTemplate[] = templates.map(tpl => {
+      const tplCategories = categoriesByTemplate[tpl.id] || [];
+      const tplMovies = (moviesByTemplate[tpl.id] || []).sort((a, b) => {
+        const aNumericId = parseInt(a.id.replace('tmdb-', '').replace('movie-', ''));
+        const bNumericId = parseInt(b.id.replace('tmdb-', '').replace('movie-', ''));
+        const aOrder = displayOrderMap[`${tpl.id}:${aNumericId}`] ?? 0;
+        const bOrder = displayOrderMap[`${tpl.id}:${bNumericId}`] ?? 0;
+        return aOrder - bOrder;
+      });
+
+      return {
+        id: tpl.id,
+        name: tpl.name,
+        description: tpl.description,
+        tags: tpl.tags || [],
+        config: {
+          maxMistakes: tpl.max_mistakes ?? 4,
+          showHints: tpl.show_hints ?? true,
+          shuffleMovies: tpl.shuffle_movies ?? true,
+          gameDifficulty: tpl.game_difficulty ?? 'intermediate'
+        },
+        categories: tplCategories,
+        movies: tplMovies
+      } as CategoryGameTemplate;
+    });
+
+    return assembled;
   } catch (error) {
     console.error('Error fetching category game templates:', error);
     return [];
@@ -141,12 +234,18 @@ export async function getCategoryGameTemplates(): Promise<CategoryGameTemplate[]
  */
 export async function deleteCategoryGameTemplate(templateId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await rawSupabase
-      .from('category_game_templates')
-      .update({ is_active: false })
-      .eq('id', templateId);
+    // Try RPC soft delete first (if function exists and is granted)
+    const { error: rpcError } = await (rawSupabase as any).rpc('soft_delete_category_template', { p_template_id: templateId });
 
-    if (error) throw error;
+    if (rpcError) {
+      // Fallback to direct update (requires valid RLS UPDATE policy)
+      const { error } = await rawSupabase
+        .from('category_game_templates')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', templateId);
+
+      if (error) throw error;
+    }
 
     return { success: true };
   } catch (error: any) {
