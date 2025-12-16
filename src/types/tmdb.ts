@@ -17,6 +17,46 @@ export interface TMDBMovie {
   video: boolean;
 }
 
+export interface TMDBPerson {
+  id: number;
+  name: string;
+  known_for_department: string;
+  profile_path: string | null;
+  popularity: number;
+  gender: number | null;
+  known_for?: TMDBMovie[];
+}
+
+export interface TMDBPersonSearchResponse {
+  page: number;
+  results: TMDBPerson[];
+  total_pages: number;
+  total_results: number;
+}
+
+export interface TMDBPersonMovieCredit extends TMDBMovie {
+  character?: string;
+  job?: string;
+  credit_id?: string;
+}
+
+export interface TMDBPersonMovieCreditsResponse {
+  id: number;
+  cast: TMDBPersonMovieCredit[];
+  crew: TMDBPersonMovieCredit[];
+}
+
+export interface ActorFilmographyEntry {
+  id: number;
+  title: string;
+  originalTitle: string;
+  year: number;
+  posterPath: string | null;
+  genre: string | null;
+  altTitles: string[];
+  character?: string;
+}
+
 export interface TMDBCastMember {
   adult: boolean;
   gender: number | null;
