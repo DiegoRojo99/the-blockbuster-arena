@@ -16,6 +16,7 @@ import SharedCastGamePage from "./pages/SharedCastGamePage";
 import CategoriesGamePage from "./pages/CategoriesGamePage";
 import AdminCategoryGamesPage from "./pages/AdminCategoryGamesPage";
 import CustomMoviePage from "./pages/CustomMoviePage";
+import ActorFilmographyPage from "./pages/ActorFilmographyPage";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/cast-game" element={<CastGamePage />} />
           <Route path="/category-game" element={<CategoriesGamePage />} />
           <Route path="/admin/category" element={<AdminCategoryGamesPage />} />
+          <Route path="/actor-filmography" element={<ActorFilmographyPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
