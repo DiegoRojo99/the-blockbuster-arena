@@ -21,7 +21,7 @@ import {
 } from "@/types/categories-game";
 import { TMDBMovie } from "@/types/tmdb";
 import { searchMovies } from "@/services/tmdb";
-import { saveCategoryGameTemplate } from "@/services/categoryGamesService";
+import { saveCategoryGameTemplate, getCategoryGameTemplates, deleteCategoryGameTemplate } from "@/services/categoryGamesService";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface MovieSearchResult extends TMDBMovie {
@@ -48,6 +48,9 @@ interface GameTemplateForm {
 const AdminCategoryGamesPage = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
+  const [templates, setTemplates] = useState<CategoryGameTemplate[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [gameForm, setGameForm] = useState<GameTemplateForm>({
     id: '',
     name: '',
@@ -73,6 +76,7 @@ const AdminCategoryGamesPage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [newTag, setNewTag] = useState('');
+  const currentCategory = gameForm.categories[currentCategoryIndex] || null;
 
   // Auto-generate ID from name
   useEffect(() => {
@@ -98,6 +102,50 @@ const AdminCategoryGamesPage = () => {
       }))
     }));
   }, [gameForm.categories.map(c => c.name).join(',')]);
+
+  // Load templates when manage tab is opened
+  useEffect(() => {
+    if (activeTab === 'manage') {
+      loadTemplates();
+    }
+  }, [activeTab]);
+
+  const loadTemplates = async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const data = await getCategoryGameTemplates();
+      setTemplates(data);
+    } catch (error) {
+      console.error('Error loading templates:', error);
+      toast({
+        title: "Failed to load templates",
+        description: "Could not fetch templates from the database.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string, templateName: string) => {
+    if (!confirm(`Delete "${templateName}"? This cannot be undone.`)) return;
+    setDeletingId(templateId);
+    try {
+      const result = await deleteCategoryGameTemplate(templateId);
+      if (!result.success) throw new Error(result.error || 'Delete failed');
+      toast({ title: "Template deleted", description: templateName });
+      setTemplates(prev => prev.filter(t => t.id !== templateId));
+    } catch (error: any) {
+      console.error('Delete failed:', error);
+      toast({
+        title: "Delete failed",
+        description: error.message || 'Could not delete template.',
+        variant: "destructive"
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleMovieSearch = async () => {
     if (!movieSearchQuery.trim()) return;
@@ -511,6 +559,9 @@ const AdminCategoryGamesPage = () => {
                       )}
                     </Button>
                   ))}
+                  {gameForm.categories.length === 0 && (
+                    <Badge variant="destructive">No categories</Badge>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -519,56 +570,61 @@ const AdminCategoryGamesPage = () => {
                   <h3 className="font-semibold">
                     Category {currentCategoryIndex + 1} Details
                   </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Category Name</Label>
-                      <Input
-                        value={gameForm.categories[currentCategoryIndex].name}
-                        onChange={(e) => updateCategoryField(currentCategoryIndex, 'name', e.target.value)}
-                        placeholder="e.g., Marvel Cinematic Universe"
-                      />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Difficulty</Label>
-                      <Select 
-                        value={gameForm.categories[currentCategoryIndex].difficulty}
-                        onValueChange={(value) => updateCategoryField(currentCategoryIndex, 'difficulty', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="easy">Easy 🟢</SelectItem>
-                          <SelectItem value="medium">Medium 🟡</SelectItem>
-                          <SelectItem value="hard">Hard 🟠</SelectItem>
-                          <SelectItem value="expert">Expert 🔴</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Hint (optional)</Label>
-                    <Input
-                      value={gameForm.categories[currentCategoryIndex].hint}
-                      onChange={(e) => updateCategoryField(currentCategoryIndex, 'hint', e.target.value)}
-                      placeholder="e.g., Superhero movies from Disney's Marvel Studios"
-                    />
-                  </div>
+                  {currentCategory ? (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Category Name</Label>
+                          <Input
+                            value={currentCategory.name}
+                            onChange={(e) => updateCategoryField(currentCategoryIndex, 'name', e.target.value)}
+                            placeholder="e.g., Marvel Cinematic Universe"
+                          />
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <Label>Difficulty</Label>
+                          <Select 
+                            value={currentCategory.difficulty}
+                            onValueChange={(value) => updateCategoryField(currentCategoryIndex, 'difficulty', value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="easy">Easy 🟢</SelectItem>
+                              <SelectItem value="medium">Medium 🟡</SelectItem>
+                              <SelectItem value="hard">Hard 🟠</SelectItem>
+                              <SelectItem value="expert">Expert 🔴</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Hint (optional)</Label>
+                        <Input
+                          value={currentCategory.hint}
+                          onChange={(e) => updateCategoryField(currentCategoryIndex, 'hint', e.target.value)}
+                          placeholder="e.g., Superhero movies from Disney's Marvel Studios"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No category selected.</p>
+                  )}
                 </div>
 
                 {/* Current Category Movies */}
                 <div className="space-y-4">
                   <h4 className="font-medium">
-                    Movies in {gameForm.categories[currentCategoryIndex].name || `Category ${currentCategoryIndex + 1}`} 
-                    ({gameForm.categories[currentCategoryIndex].movies.length}/4)
+                    Movies in {currentCategory?.name || `Category ${currentCategoryIndex + 1}`} 
+                    ({currentCategory?.movies.length || 0}/4)
                   </h4>
                   
-                  {gameForm.categories[currentCategoryIndex].movies.length > 0 && (
+                  {currentCategory && currentCategory.movies.length > 0 && (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {gameForm.categories[currentCategoryIndex].movies.map((movie, movieIndex) => (
+                      {currentCategory.movies.map((movie, movieIndex) => (
                         <div key={movie.id} className="relative group">
                           <Card className="hover:shadow-md transition-shadow">
                             <CardContent className="p-3">
@@ -597,7 +653,7 @@ const AdminCategoryGamesPage = () => {
                 </div>
 
                 {/* Movie Search */}
-                {gameForm.categories[currentCategoryIndex].movies.length < 4 && (
+                  {currentCategory && currentCategory.movies.length < 4 && (
                   <div className="space-y-4 p-4 border-2 border-dashed rounded-lg">
                     <h4 className="font-medium">Add Movies</h4>
                     
@@ -669,13 +725,82 @@ const AdminCategoryGamesPage = () => {
                 <CardTitle>Manage Existing Games</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-8">
-                  <AlertCircle className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                  <h3 className="text-lg font-semibold mb-2">Management Interface Coming Soon</h3>
-                  <p className="text-muted-foreground">
-                    This will show existing game templates with options to edit, duplicate, or delete them.
-                  </p>
-                </div>
+                {isLoadingTemplates ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading templates...</div>
+                ) : templates.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No templates found.</div>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {templates.map((tpl) => {
+                      const missingMovies = (tpl.movies?.length || 0) === 0;
+                      return (
+                        <Card key={tpl.id} className="border">
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <CardTitle className="text-lg">{tpl.name}</CardTitle>
+                                <p className="text-xs text-muted-foreground">{tpl.id}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                {missingMovies && (
+                                  <Badge variant="destructive" className="text-xs">No movies</Badge>
+                                )}
+                                <Badge variant="secondary" className="text-xs">{tpl.categories.length} categories</Badge>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-3">
+                            <p className="text-sm text-muted-foreground line-clamp-2">{tpl.description}</p>
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              {tpl.tags?.map(tag => (
+                                <Badge key={tag} variant="outline">{tag}</Badge>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="text-xs text-muted-foreground">
+                                {tpl.movies.length}/16 movies
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setGameForm({
+                                      id: tpl.id,
+                                      name: tpl.name,
+                                      description: tpl.description,
+                                      tags: tpl.tags || [],
+                                      config: tpl.config,
+                                      categories: tpl.categories.map(cat => ({
+                                        id: cat.id,
+                                        name: cat.name,
+                                        difficulty: cat.difficulty,
+                                        hint: cat.hint || '',
+                                        movies: tpl.movies.filter(m => m.categoryId === cat.id)
+                                      }))
+                                    });
+                                    setActiveTab('create');
+                                    toast({ title: "Loaded for editing", description: tpl.name });
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={deletingId === tpl.id}
+                                  onClick={() => handleDeleteTemplate(tpl.id, tpl.name)}
+                                >
+                                  {deletingId === tpl.id ? 'Deleting...' : 'Delete'}
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

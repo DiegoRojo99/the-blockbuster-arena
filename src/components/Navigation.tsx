@@ -24,7 +24,8 @@ const Navigation = () => {
   const navItems = [
     { path: "/", label: "Home", icon: Home },
     { path: "/cast-game-modes", label: "Cast Game", icon: Users },
-    { path: "/category-game", label: "Categories", icon: Grid3x3 },
+    // Temporarily hide Categories game from navigation
+    // { path: "/category-game", label: "Categories", icon: Grid3x3 },
   ];
 
   return (

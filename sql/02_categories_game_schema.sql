@@ -292,7 +292,52 @@ CREATE INDEX IF NOT EXISTS idx_category_stats_wins ON public.category_game_stats
 CREATE INDEX IF NOT EXISTS idx_category_stats_streaks ON public.category_game_stats(best_win_streak DESC);
 
 -- =============================================
--- 9. HELPER FUNCTIONS
+-- 9. ROW LEVEL SECURITY (RLS) FOR CATEGORY GAME (READ + MANAGE)
+-- =============================================
+
+-- Enable RLS on core tables if not already
+ALTER TABLE public.category_game_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.game_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.template_movies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.movies ENABLE ROW LEVEL SECURITY;
+
+-- Templates: public read (active only)
+DROP POLICY IF EXISTS "Public read templates" ON public.category_game_templates;
+CREATE POLICY "Public read templates" ON public.category_game_templates
+    FOR SELECT TO anon, authenticated
+    USING (is_active = true);
+
+-- Templates: creators can insert
+DROP POLICY IF EXISTS "Creators can insert templates" ON public.category_game_templates;
+CREATE POLICY "Creators can insert templates" ON public.category_game_templates
+    FOR INSERT TO authenticated
+    WITH CHECK (auth.uid() = created_by);
+
+-- Templates: creators can update (including soft delete)
+DROP POLICY IF EXISTS "Creators can update templates" ON public.category_game_templates;
+CREATE POLICY "Creators can update templates" ON public.category_game_templates
+    FOR UPDATE TO authenticated
+    USING (auth.uid() = created_by)
+    WITH CHECK (auth.uid() = created_by);
+
+-- Optional: public read for categories/movies/template_movies
+DROP POLICY IF EXISTS "Public read categories" ON public.game_categories;
+CREATE POLICY "Public read categories" ON public.game_categories
+    FOR SELECT TO anon, authenticated
+    USING (true);
+
+DROP POLICY IF EXISTS "Public read template movies" ON public.template_movies;
+CREATE POLICY "Public read template movies" ON public.template_movies
+    FOR SELECT TO anon, authenticated
+    USING (is_active = true);
+
+DROP POLICY IF EXISTS "Public read movies" ON public.movies;
+CREATE POLICY "Public read movies" ON public.movies
+    FOR SELECT TO anon, authenticated
+    USING (is_active = true);
+
+-- =============================================
+-- 10. HELPER FUNCTIONS (Soft Delete via RPC)
 -- =============================================
 
 -- Function to calculate final score based on performance
@@ -398,6 +443,23 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to auto-update stats when session completes
+
+-- Soft delete function for templates (RPC)
+-- Note: SECURITY DEFINER executes with the owner's privileges
+CREATE OR REPLACE FUNCTION public.soft_delete_category_template(p_template_id TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+    UPDATE public.category_game_templates
+    SET is_active = false,
+            updated_at = NOW()
+    WHERE id = p_template_id;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.soft_delete_category_template(TEXT) TO anon, authenticated;
 DROP TRIGGER IF EXISTS update_category_game_stats_trigger ON public.category_game_sessions;
 CREATE TRIGGER update_category_game_stats_trigger
     AFTER UPDATE ON public.category_game_sessions

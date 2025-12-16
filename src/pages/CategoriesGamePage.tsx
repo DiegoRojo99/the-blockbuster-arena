@@ -23,6 +23,7 @@ const CategoriesGamePage = () => {
   const [selectedGame, setSelectedGame] = useState<CategoryGameTemplate | null>(null);
   const [availableGames, setAvailableGames] = useState<CategoryGameTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hiddenPosters, setHiddenPosters] = useState<Record<string, boolean>>({});
   const [gameState, setGameState] = useState<GameState>({
     categories: [],
     movies: [],
@@ -97,6 +98,7 @@ const CategoriesGamePage = () => {
       isWon: false,
       startTime: new Date()
     });
+    setHiddenPosters({});
   };
 
   const handleMovieClick = (movie: GameMovie) => {
@@ -222,6 +224,10 @@ const CategoriesGamePage = () => {
     setGameState(prev => ({ ...prev, selectedMovies: [] }));
   };
 
+  const handlePosterError = (movieId: string) => {
+    setHiddenPosters(prev => ({ ...prev, [movieId]: true }));
+  };
+
   // Loading screen
   if (isLoading || !selectedGame) {
     return (
@@ -331,6 +337,7 @@ const CategoriesGamePage = () => {
             <div className="grid grid-cols-4 gap-3">
               {availableMovies.slice(0, 16).map((movie, index) => {
                 const isSelected = gameState.selectedMovies.find(m => m.id === movie.id);
+                const showPoster = Boolean(movie.poster) && !hiddenPosters[movie.id];
                 
                 return (
                   <Card
@@ -345,11 +352,13 @@ const CategoriesGamePage = () => {
                     style={{ animationDelay: `${index * 0.05}s` }}
                   >
                     <CardContent className="p-3 text-center">
-                      {movie.poster && (
+                      {showPoster && (
                         <img
                           src={movie.poster}
                           alt={movie.title}
                           className="w-full h-20 object-cover rounded-md mb-2"
+                          onError={() => handlePosterError(movie.id)}
+                          loading="lazy"
                         />
                       )}
                       <p className="text-xs font-medium line-clamp-2">
