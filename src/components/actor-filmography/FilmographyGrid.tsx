@@ -52,7 +52,7 @@ export const FilmographyGrid = ({ entries, guessedIds, hintSteps, isTimeUp, onRe
                   !guessed && !isTimeUp && hintLevel < 4 ? 'bg-gradient-to-br from-slate-700 to-slate-900' : 'bg-gradient-to-br from-slate-600 to-slate-800'
                 )}
               >
-                {hintLevel >= 4 && posterUrl ? (
+                {(guessed || hintLevel >= 4) && posterUrl ? (
                   <img
                     src={posterUrl}
                     alt={entry.title}
