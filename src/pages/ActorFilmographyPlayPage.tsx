@@ -30,10 +30,12 @@ const ActorFilmographyPlayPage = () => {
 
   const actorId = parseInt(searchParams.get('actorId') || '', 10);
   const timeLimit = parseInt(searchParams.get('timeLimit') || '', 10) || undefined;
+  const actorNameParam = searchParams.get('actorName');
 
   const game = useActorFilmographyGame({ language: currentLanguage, timeLimit });
   const [clearSelection, setClearSelection] = useState(false);
   const [isLoadingActor, setIsLoadingActor] = useState(true);
+  const [actorName, setActorName] = useState<string>('');
 
   // Load actor on mount from URL param
   useEffect(() => {
@@ -53,10 +55,14 @@ const ActorFilmographyPlayPage = () => {
           return;
         }
 
-        // Load filmography
+        // Get actor name from URL params or default
+        const displayName = actorNameParam || `Actor #${actorId}`;
+        setActorName(displayName);
+
+        // Load filmography with actual actor name
         game.actions.selectActor({
           id: actorId,
-          name: `Actor #${actorId}`,
+          name: displayName,
           known_for_department: 'Acting',
           profile_path: null,
           popularity: 0,
@@ -82,7 +88,7 @@ const ActorFilmographyPlayPage = () => {
     if (result.status === 'correct' && result.entry) {
       toast({
         title: 'Correct!',
-        description: `${result.entry.title} (${result.entry.year}) added to your list.`,
+        description: `${result.entry.title} (${result.entry.year}) added to your list. ${game.progress.correct + 1}/${game.progress.total}`,
       });
       return;
     }
@@ -148,20 +154,26 @@ const ActorFilmographyPlayPage = () => {
   return (
     <Layout className="min-h-screen bg-background p-4">
       <div className="max-w-6xl mx-auto space-y-6 pt-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col items-start gap-2">
             <Link to="/actor-filmography">
               <Button variant="ghost" size="sm" className="flex items-center gap-2">
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
             </Link>
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold">{game.actor?.name || 'Filmography Challenge'}</h1>
-              <div className="text-sm text-muted-foreground">{game.filmography.length} feature films to discover</div>
+            <div className="md:hidden">
+              <h1 className="text-2xl font-bold">{game.actor?.name || 'Filmography Challenge'}</h1>
+              <div className="text-sm text-muted-foreground">{game.progress.correct}/{game.progress.total || '??'} guessed</div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          <div className="hidden md:block text-center">
+            <h1 className="text-2xl md:text-3xl font-bold">{game.actor?.name || 'Filmography Challenge'}</h1>
+            <div className="text-sm text-muted-foreground">{game.filmography.length} feature films to discover</div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 md:justify-end">
             {timerBadge}
             {progressBadge}
           </div>

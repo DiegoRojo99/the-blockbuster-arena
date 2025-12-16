@@ -23,6 +23,7 @@ const ActorFilmographySetupPage = () => {
     const timeLimitSeconds = timeLimitMinutes * 60;
     const params = new URLSearchParams({
       actorId: selectedActor.id.toString(),
+      actorName: selectedActor.name,
       timeLimit: timeLimitSeconds.toString(),
     });
 
